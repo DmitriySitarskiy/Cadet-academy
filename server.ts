@@ -557,22 +557,77 @@ app.post('/api/exam/:token/submit', async (req, res) => {
     const userAns = (answers || []).find((a: any) => a.questionId === qid) || {};
     const shuffleOrder = tokenRecord.optionsShuffle[q.id] || [];
 
+    // 1. Одиночний вибір
     if (q.type === 'single') {
       maxAutoScore += q.maxPoints;
       let isCorrect = false;
       let score = 0;
       if (userAns.selectedOption !== undefined && userAns.selectedOption !== null) {
-        if (shuffleOrder[userAns.selectedOption] === q.correctOption) {
+        const originalSelected = shuffleOrder.length > 0 ? shuffleOrder[userAns.selectedOption] : userAns.selectedOption;
+        if (originalSelected === q.correctOption) {
           isCorrect = true;
           score = q.maxPoints;
           autoScore += score;
         }
       }
-      evaluatedAnswers.push({ questionId: q.id, type: 'single', selectedOption: userAns.selectedOption, autoScore: score, maxPoints: q.maxPoints, isCorrect });
-    } else if (q.type === 'open') {
+      evaluatedAnswers.push({
+        questionId: q.id,
+        type: 'single',
+        selectedOption: userAns.selectedOption,
+        autoScore: score,
+        maxPoints: q.maxPoints,
+        isCorrect,
+      });
+    }
+    // 2. Множинний вибір (ТЕПЕР ВРАХОВУЄТЬСЯ І ДОДАЄТЬСЯ В БАЛИ!)
+    else if (q.type === 'multiple') {
+      maxAutoScore += q.maxPoints;
+      let isCorrect = false;
+      let score = 0;
+
+      const userSelections: number[] = userAns.selectedOptions || [];
+      const mappedOriginals = shuffleOrder.length > 0
+        ? userSelections.map((dispIdx) => (shuffleOrder[dispIdx] !== undefined ? shuffleOrder[dispIdx] : dispIdx)).sort()
+        : [...userSelections].sort();
+      const actualCorrect = [...(q.correctOptions || [])].sort();
+
+      const isExactMatch =
+        mappedOriginals.length === actualCorrect.length &&
+        mappedOriginals.every((val, index) => val === actualCorrect[index]);
+
+      if (isExactMatch) {
+        isCorrect = true;
+        score = q.maxPoints;
+        autoScore += score;
+      } else {
+        // Частковий бал якщо немає неправильних варіантів
+        const incorrectCount = mappedOriginals.filter((i) => !actualCorrect.includes(i)).length;
+        if (incorrectCount === 0 && mappedOriginals.length > 0 && actualCorrect.length > 0) {
+          score = Math.floor((mappedOriginals.length / actualCorrect.length) * q.maxPoints);
+          autoScore += score;
+        }
+      }
+
+      evaluatedAnswers.push({
+        questionId: q.id,
+        type: 'multiple',
+        selectedOptions: userSelections,
+        autoScore: score,
+        maxPoints: q.maxPoints,
+        isCorrect,
+      });
+    }
+    // 3. Відкритий кейс
+    else if (q.type === 'open') {
       hasOpen = true;
       maxManualScore += q.maxPoints;
-      evaluatedAnswers.push({ questionId: q.id, type: 'open', textAnswer: (userAns.textAnswer || '').trim(), manualScore: 0, maxPoints: q.maxPoints });
+      evaluatedAnswers.push({
+        questionId: q.id,
+        type: 'open',
+        textAnswer: (userAns.textAnswer || '').trim(),
+        manualScore: 0,
+        maxPoints: q.maxPoints,
+      });
     }
   }
 
@@ -612,8 +667,25 @@ app.post('/api/exam/:token/submit', async (req, res) => {
   db.results.unshift(newResult);
   saveDb();
 
-  sendDiscordExamSubmission(newResult, APP_URL).catch(() => {});
-  res.json({ success: true, resultId: newResult.id, percentage, autoScore, maxAutoScore, status: newResult.status });
+  // Обов'язково чекаємо відправку в Discord, щоб захопити ID створеної гілки!
+  try {
+    const discordRes = await sendDiscordExamSubmission(newResult, APP_URL);
+    if (discordRes.success) {
+      newResult.discordPosted = true;
+      saveDb();
+    }
+  } catch (err) {
+    console.error('Discord submission error:', err);
+  }
+
+  res.json({
+    success: true,
+    resultId: newResult.id,
+    percentage,
+    autoScore,
+    maxAutoScore,
+    status: newResult.status,
+  });
 });
 
 // Results
@@ -624,25 +696,24 @@ app.get('/api/results', (req, res) => {
 app.get('/api/results/:id', (req, res) => {
   const db = getDb();
   const result = db.results.find((r) => r.id === req.params.id);
-  if (!result) return res.status(404).json({ error: 'Результат не знайдено' });
+  if (!result) return res.status(404).json({ error: 'Не знайдено' });
 
   const test = db.tests.find((t) => t.id === result.testId);
   const token = db.tokens.find((t) => t.token === result.token);
 
-  // Підтягуємо текст питань, варіанти та що саме обрав кадет
+  // Підставляємо повний текст питань, правильні варіанти та вибір кадета
   const detailedAnswers = (result.answers || []).map((ans: any) => {
     const question = test?.questions?.find((q: any) => q.id === ans.questionId);
     const shuffle = token?.optionsShuffle?.[ans.questionId];
 
-    // Якщо варіанти перемішувалися для кадета — зіставляємо їх з оригіналом
     let finalSelectedOption = ans.selectedOption;
-    if (shuffle && ans.selectedOption !== undefined && shuffle[ans.selectedOption] !== undefined) {
+    if (ans.type === 'single' && shuffle && ans.selectedOption !== undefined && shuffle[ans.selectedOption] !== undefined) {
       finalSelectedOption = shuffle[ans.selectedOption];
     }
 
-    let finalSelectedOptions = ans.selectedOptions;
-    if (shuffle && Array.isArray(ans.selectedOptions)) {
-      finalSelectedOptions = ans.selectedOptions.map((dispIdx: number) => shuffle[dispIdx] ?? dispIdx);
+    let finalSelectedOptions = ans.selectedOptions || [];
+    if (ans.type === 'multiple' && shuffle && Array.isArray(ans.selectedOptions)) {
+      finalSelectedOptions = ans.selectedOptions.map((dispIdx: number) => (shuffle[dispIdx] !== undefined ? shuffle[dispIdx] : dispIdx));
     }
 
     return {
@@ -673,19 +744,28 @@ app.post('/api/results/:id/decision', async (req, res) => {
   const result = db.results.find((r) => r.id === req.params.id);
   if (!result) return res.status(404).json({ error: 'Не знайдено' });
 
+  // Зберігаємо або оновлюємо ID гілки Discord Forum, якщо інструктор вказав посилання чи ID
+  if (threadId && typeof threadId === 'string' && threadId.trim()) {
+    const cleanId = threadId.trim().split('/').filter(Boolean).pop()?.trim();
+    if (cleanId) {
+      result.discordThreadId = cleanId;
+    }
+  }
+
   const currentInstructor = getCurrentUser(req);
   result.status = decision;
   result.instructorDecision = {
-    instructorId: currentInstructor.id,
-    instructorName: currentInstructor.name,
+    instructorId: currentInstructor?.id || 'usr_inst',
+    instructorName: currentInstructor?.name || 'Інструктор',
     decision,
     comment: (comment || '').trim(),
     decidedAt: new Date().toISOString(),
   };
+
   saveDb();
 
   const discordRes = await sendDiscordInstructorDecision(result, APP_URL);
-  res.json({ success: true, result, discordSent: discordRes.success });
+  res.json({ success: true, result, discordSent: discordRes.success, discordError: discordRes.error });
 });
 
 app.get('/api/cadets/history', (req, res) => {
