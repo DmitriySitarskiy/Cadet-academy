@@ -11,6 +11,7 @@ import {
   Key,
   Lock,
   LogIn,
+  LogOut,
 } from 'lucide-react';
 import { User, AppSettings } from '../types';
 
@@ -23,6 +24,7 @@ interface HeaderProps {
   settings: AppSettings | null;
   onOpenInstructorsModal: () => void;
   onOpenDiscordAuth: () => void;
+  onLogout: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   settings,
   onOpenInstructorsModal,
   onOpenDiscordAuth,
+  onLogout,
 }) => {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const isLeader = currentUser?.role === 'leader';
@@ -190,6 +193,16 @@ export const Header: React.FC<HeaderProps> = ({
                     >
                       <Users className="w-3.5 h-3.5" />
                       Керування штатом інструкторів
+                    </button>
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        onLogout();
+                      }}
+                      className="w-full text-center py-1.5 text-xs text-red-400 hover:text-red-300 font-medium rounded-lg hover:bg-red-500/10 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Вийти з акаунта
                     </button>
                   </div>
                 </div>

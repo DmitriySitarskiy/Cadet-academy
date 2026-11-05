@@ -7,10 +7,21 @@ import {
   DiscordLogEntry,
 } from '../types';
 
+function getAuthHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const activeUserId = typeof window !== 'undefined' ? localStorage.getItem('cadet_current_user_id') || '' : '';
+  return {
+    'Content-Type': 'application/json',
+    ...(activeUserId ? { 'x-user-id': activeUserId } : {}),
+    ...extra,
+  };
+}
+
 export const api = {
   // Session & Auth
   async getSession(): Promise<{ user: User; settings: AppSettings; allUsers: User[] }> {
-    const res = await fetch('/api/session');
+    const res = await fetch('/api/session', {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error('Помилка завантаження сесії');
     return res.json();
   },
@@ -18,7 +29,7 @@ export const api = {
   async switchUser(userId: string): Promise<{ success: boolean; user: User }> {
     const res = await fetch('/api/session/switch', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ userId }),
     });
     if (!res.ok) throw new Error('Не вдалося перемкнути користувача');
@@ -26,7 +37,9 @@ export const api = {
   },
 
   async getDiscordAuthUrl(): Promise<{ url: string; redirectUri: string }> {
-    const res = await fetch('/api/auth/discord/url');
+    const res = await fetch('/api/auth/discord/url', {
+      headers: getAuthHeaders(),
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Помилка отримання Discord OAuth URL');
     return data;
@@ -41,7 +54,7 @@ export const api = {
   }): Promise<{ success: boolean; user: User }> {
     const res = await fetch('/api/auth/discord/direct-login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
     const data = await res.json();
@@ -50,7 +63,10 @@ export const api = {
   },
 
   async logout(): Promise<{ success: boolean; user: User }> {
-    const res = await fetch('/api/auth/logout', { method: 'POST' });
+    const res = await fetch('/api/auth/logout', { 
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error('Помилка виходу');
     return res.json();
   },
@@ -67,17 +83,19 @@ export const api = {
   }): Promise<{ success: boolean; settings: AppSettings; message?: string }> {
     const res = await fetch('/api/settings/roles', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Помилка збереження структури ролей');
     return data;
   },
-
+  
   // Settings
   async getSettings(): Promise<AppSettings> {
-    const res = await fetch('/api/settings');
+    const res = await fetch('/api/settings', {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error('Помилка отримання налаштувань');
     return res.json();
   },
@@ -85,7 +103,7 @@ export const api = {
   async updateSettings(settings: Partial<AppSettings>): Promise<{ success: boolean; settings: AppSettings }> {
     const res = await fetch('/api/settings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(settings),
     });
     if (!res.ok) throw new Error('Помилка оновлення налаштувань');

@@ -17,17 +17,20 @@ const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 app.use(express.json({ limit: '10mb' }));
 
 // Active user tracking
-let currentUserId = 'usr_leader_1'; // Default active user (Leader)
+let currentUserId = 'usr_initial_admin';
 
-function getCurrentUser(): User {
+function getCurrentUser(req?: express.Request): User {
   const db = getDb();
-  return db.users.find((u) => u.id === currentUserId) || db.users[0];
+  // Перевіряємо заголовок від поточного користувача з фронтенду
+  const headerUserId = req?.headers?.['x-user-id'] as string;
+  const targetId = headerUserId || currentUserId;
+  return db.users.find((u) => u.id === targetId || u.discordId === targetId) || db.users[0];
 }
 
 // Middleware: restrict actions to Faction Leader only
 function requireLeader(req: express.Request, res: express.Response, next: express.NextFunction) {
-  const user = getCurrentUser();
-  if (user.role !== 'leader') {
+  const user = getCurrentUser(req);
+  if (!user || user.role !== 'leader') {
     return res.status(403).json({
       error: 'Доступ обмежено: Тільки Лідер фракції має право керувати вебхуком, змінювати ролі та конфігурацію системи.',
     });
@@ -49,7 +52,7 @@ function shuffleArray<T>(array: T[]): T[] {
 
 app.get('/api/session', (req, res) => {
   const db = getDb();
-  const user = getCurrentUser();
+  const user = getCurrentUser(req);
   res.json({
     user,
     settings: db.settings,

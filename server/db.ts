@@ -2,12 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { TestConfig, ExamToken, ExamResult, AppSettings, User, DiscordLogEntry } from '../src/types.js';
 
-// Визначаємо середовище: на Netlify пишемо в /tmp, локально — у ./data
 const isNetlify = Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
-const DATA_DIR = isNetlify
-  ? path.resolve('/tmp', 'data')
-  : path.resolve(process.cwd(), 'data');
+const DATA_DIR = isNetlify ? path.resolve('/tmp', 'data') : path.resolve(process.cwd(), 'data');
 const DB_FILE = path.resolve(DATA_DIR, 'db.json');
+
+const SUPABASE_URL = process.env.SUPABASE_URL?.replace(/\/+$/, '');
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
 
 export interface DatabaseSchema {
   settings: AppSettings;
@@ -18,7 +18,6 @@ export interface DatabaseSchema {
   discordLogs: DiscordLogEntry[];
 }
 
-// Базові системні налаштування (за замовчуванням беруться зі змінних середовища)
 const defaultSettings: AppSettings = {
   academyName: process.env.ACADEMY_NAME || 'Академія',
   factionTag: process.env.FACTION_TAG || 'Фракція',
@@ -33,14 +32,13 @@ const defaultSettings: AppSettings = {
   discordClientSecret: process.env.DISCORD_CLIENT_SECRET || '',
   leaderSecurityPin: process.env.LEADER_SECURITY_PIN || '7777',
   roleTitles: {
-    leader: 'Лідер',
-    instructor: 'Інструктор',
-    cadet: 'Кадет',
+    leader: 'Шеф Департаменту / Лідер',
+    instructor: 'Інструктор Академії',
+    cadet: 'Кадет Академії',
   },
   roleAuditLogs: [],
 };
 
-// Початковий системний користувач (щоб сервер не падав до першого входу через Discord)
 const defaultUsers: User[] = [
   {
     id: 'usr_initial_admin',
@@ -52,30 +50,73 @@ const defaultUsers: User[] = [
   },
 ];
 
-function initDb(): DatabaseSchema {
+async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data`, {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      },
+    });
+    if (res.ok) {
+      const rows = (await res.json()) as any[];
+      if (rows.length > 0 && rows[0].data) {
+        return rows[0].data as DatabaseSchema;
+      }
+    }
+  } catch (err) {
+    console.warn('Не вдалося отримати дані з Supabase, fallback на локальний диск:', err);
+  }
+  return null;
+}
+
+async function pushToSupabase(data: DatabaseSchema): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/app_state`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({
+        id: 'main',
+        data,
+        updated_at: new Date().toISOString(),
+      }),
+    });
+  } catch (err) {
+    console.error('Помилка синхронізації з Supabase:', err);
+  }
+}
+
+async function initDb(): Promise<DatabaseSchema> {
+  // 1. Спочатку перевіряємо Supabase
+  const cloudDb = await fetchFromSupabase();
+  if (cloudDb) {
+    return {
+      settings: { ...defaultSettings, ...(cloudDb.settings || {}) },
+      users: cloudDb.users?.length ? cloudDb.users : defaultUsers,
+      tests: cloudDb.tests || [],
+      tokens: cloudDb.tokens || [],
+      results: cloudDb.results || [],
+      discordLogs: cloudDb.discordLogs || [],
+    };
+  }
+
+  // 2. Локальний диск (fallback)
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-  } catch (err) {
-    console.warn('Не вдалося створити директорію бази даних:', err);
-  }
-
-  try {
     if (fs.existsSync(DB_FILE)) {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
-
       return {
-        settings: {
-          ...defaultSettings,
-          ...(parsed.settings || {}),
-          roleTitles: {
-            ...defaultSettings.roleTitles,
-            ...(parsed.settings?.roleTitles || {}),
-          },
-          roleAuditLogs: parsed.settings?.roleAuditLogs || [],
-        },
+        settings: { ...defaultSettings, ...(parsed.settings || {}) },
         users: parsed.users?.length ? parsed.users : defaultUsers,
         tests: parsed.tests || [],
         tokens: parsed.tokens || [],
@@ -84,10 +125,9 @@ function initDb(): DatabaseSchema {
       };
     }
   } catch (err) {
-    console.error('Помилка читання db.json, ініціалізація нової бази:', err);
+    console.warn('Помилка локального читання db.json:', err);
   }
 
-  // Чиста база даних без мокових даних
   const initialDb: DatabaseSchema = {
     settings: defaultSettings,
     users: defaultUsers,
@@ -97,28 +137,34 @@ function initDb(): DatabaseSchema {
     discordLogs: [],
   };
 
+  // Зберігаємо і в хмару, і локально
+  pushToSupabase(initialDb).catch(() => {});
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(initialDb, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn('Не вдалося записати файл бази даних:', err);
-  }
+  } catch {}
 
   return initialDb;
 }
 
-let dbInstance: DatabaseSchema = initDb();
+let dbInstance: DatabaseSchema = await initDb();
 
 export function getDb(): DatabaseSchema {
   return dbInstance;
 }
 
 export function saveDb(): void {
+  // Зберігаємо на локальний диск
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(DB_FILE, JSON.stringify(dbInstance, null, 2), 'utf-8');
   } catch (err) {
-    console.error('Помилка збереження бази даних:', err);
+    console.error('Помилка запису db.json:', err);
   }
+
+  // І відправляємо в Supabase для постійного збереження
+  pushToSupabase(dbInstance).catch((err) => {
+    console.error('Supabase async save error:', err);
+  });
 }

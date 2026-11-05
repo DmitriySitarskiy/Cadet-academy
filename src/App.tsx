@@ -94,6 +94,17 @@ export default function App() {
     loadAllData();
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch (e) {
+      console.error(e);
+    }
+    localStorage.removeItem('cadet_current_user_id');
+    setCurrentUser(null);
+    setShowDiscordAuth(true);
+  };
+
   const handleSwitchUser = async (userId: string) => {
     try {
       const res = await api.switchUser(userId);
@@ -139,6 +150,7 @@ export default function App() {
         settings={settings}
         onOpenInstructorsModal={() => setShowInstructorsModal(true)}
         onOpenDiscordAuth={() => setShowDiscordAuth(true)}
+        onLogout={handleLogout}
       />
 
       {/* Adaptive Mobile/Tablet Tab Bar */}
@@ -285,6 +297,7 @@ export default function App() {
         currentUser={currentUser}
         settings={settings}
         onUserChanged={(u) => {
+          localStorage.setItem('cadet_current_user_id', u.id);
           setCurrentUser(u);
           loadAllData();
         }}
