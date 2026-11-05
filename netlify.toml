@@ -2,6 +2,9 @@
   command = "npm run build"
   publish = "dist"
 
+[functions]
+  directory = "netlify/functions"
+  
 # Redirect all API calls to server or functions (if using Netlify Functions)
 # [[redirects]]
 #   from = "/api/*"
