@@ -19,8 +19,8 @@ export interface DatabaseSchema {
 }
 
 const defaultSettings: AppSettings = {
-  academyName: process.env.ACADEMY_NAME || 'Академія',
-  factionTag: process.env.FACTION_TAG || 'Фракція',
+  academyName: process.env.ACADEMY_NAME || 'Поліцейська Академія',
+  factionTag: process.env.FACTION_TAG || 'Шериф / Поліція',
   discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL || '',
   discordForumThreadNameFormat: '📋 [ІСПИТ] {test} — {cadet} ({static})',
   discordRoleMentionId: '',
@@ -41,17 +41,27 @@ const defaultSettings: AppSettings = {
 
 const defaultUsers: User[] = [
   {
-    id: 'usr_initial_admin',
-    name: 'Адміністратор системи',
+    id: 'usr_leader_1',
+    name: 'Шеф Департаменту (Лідер)',
     role: 'leader',
-    staticId: '#0001',
+    staticId: '#1001',
     discordId: process.env.INITIAL_LEADER_DISCORD_ID || '',
+    authMethod: 'manual',
+  },
+  {
+    id: 'usr_inst_1',
+    name: 'Черговий Інструктор',
+    role: 'instructor',
+    staticId: '#1420',
     authMethod: 'manual',
   },
 ];
 
 async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.warn('[Supabase] Відсутній SUPABASE_URL або SUPABASE_ANON_KEY');
+    return null;
+  }
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data`, {
       headers: {
@@ -59,14 +69,17 @@ async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
         Authorization: `Bearer ${SUPABASE_KEY}`,
       },
     });
-    if (res.ok) {
-      const rows = (await res.json()) as any[];
-      if (rows.length > 0 && rows[0].data) {
-        return rows[0].data as DatabaseSchema;
-      }
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('[Supabase Fetch Error]:', res.status, errText);
+      return null;
+    }
+    const rows = (await res.json()) as any[];
+    if (rows.length > 0 && rows[0].data) {
+      return rows[0].data as DatabaseSchema;
     }
   } catch (err) {
-    console.warn('Не вдалося отримати дані з Supabase:', err);
+    console.error('[Supabase Connection Failed]:', err);
   }
   return null;
 }
@@ -74,7 +87,8 @@ async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
 async function pushToSupabase(data: DatabaseSchema): Promise<void> {
   if (!SUPABASE_URL || !SUPABASE_KEY) return;
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/app_state`, {
+    // ?on_conflict=id є критично необхідним для збереження повторних оновлень у Supabase
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?on_conflict=id`, {
       method: 'POST',
       headers: {
         apikey: SUPABASE_KEY,
@@ -88,8 +102,14 @@ async function pushToSupabase(data: DatabaseSchema): Promise<void> {
         updated_at: new Date().toISOString(),
       }),
     });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('[Supabase Save Error]:', res.status, errText);
+    } else {
+      console.log('[Supabase] Успішно збережено в хмару!');
+    }
   } catch (err) {
-    console.error('Помилка синхронізації з Supabase:', err);
+    console.error('[Supabase Save Exception]:', err);
   }
 }
 
@@ -111,7 +131,7 @@ function initDbSync(): DatabaseSchema {
       };
     }
   } catch (err) {
-    console.warn('Помилка локального читання db.json:', err);
+    console.warn('Локальний файл db.json недоступний:', err);
   }
 
   const initialDb: DatabaseSchema = {
@@ -130,13 +150,11 @@ function initDbSync(): DatabaseSchema {
   return initialDb;
 }
 
-// 1. Початкова синхронна ініціалізація БЕЗ top-level await
 let dbInstance: DatabaseSchema = initDbSync();
 let lastCloudFetchTime = 0;
 
-// 2. Функція підвантаження свіжих даних із Supabase (кеш на 5 секунд)
 export async function ensureDbLoaded(): Promise<void> {
-  if (Date.now() - lastCloudFetchTime < 5000) return;
+  if (Date.now() - lastCloudFetchTime < 3000) return;
   const cloudDb = await fetchFromSupabase();
   if (cloudDb) {
     dbInstance = {
@@ -156,18 +174,16 @@ export function getDb(): DatabaseSchema {
 }
 
 export function saveDb(): void {
-  // Зберігаємо локально
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(DB_FILE, JSON.stringify(dbInstance, null, 2), 'utf-8');
   } catch (err) {
-    console.error('Помилка запису db.json:', err);
+    console.error('Помилка локального збереження:', err);
   }
 
-  // Зберігаємо в Supabase
   pushToSupabase(dbInstance).catch((err) => {
-    console.error('Supabase async save error:', err);
+    console.error('Помилка асинхронного збереження в Supabase:', err);
   });
 }

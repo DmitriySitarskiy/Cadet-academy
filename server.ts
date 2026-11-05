@@ -72,7 +72,8 @@ app.get('/api/session', (req, res) => {
 app.post('/api/session/switch', (req, res) => {
   const { userId } = req.body;
   const db = getDb();
-  const target = db.users.find((u) => u.id === userId);
+  // Шукаємо користувача, а якщо не знайдено — беремо першого доступного замість помилки 404
+  const target = db.users.find((u) => u.id === userId) || db.users[0];
   if (target) {
     currentUserId = target.id;
     return res.json({ success: true, user: target });
