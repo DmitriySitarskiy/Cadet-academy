@@ -686,7 +686,7 @@ app.post('/api/results/:id/grade-open', (req, res) => {
 });
 
 app.post('/api/results/:id/decision', async (req, res) => {
-  const { decision, comment } = req.body;
+  const { decision, comment, threadId } = req.body;
   if (!['passed', 'failed', 'retake_allowed'].includes(decision)) {
     return res.status(400).json({ error: 'Некоректний статус вердикту' });
   }
@@ -695,6 +695,14 @@ app.post('/api/results/:id/decision', async (req, res) => {
   const result = db.results.find((r) => r.id === req.params.id);
   if (!result) {
     return res.status(404).json({ error: 'Результат не знайдено' });
+  }
+
+  // If instructor provided or confirmed a threadId/URL
+  if (threadId && typeof threadId === 'string' && threadId.trim()) {
+    const cleanId = threadId.trim().split('/').filter(Boolean).pop()?.trim();
+    if (cleanId) {
+      result.discordThreadId = cleanId;
+    }
   }
 
   const currentInstructor = db.users.find((u) => u.id === currentUserId) || db.users[0];
@@ -711,9 +719,14 @@ app.post('/api/results/:id/decision', async (req, res) => {
   saveDb();
 
   // Send Discord decision update
-  await sendDiscordInstructorDecision(result, APP_URL);
+  const discordRes = await sendDiscordInstructorDecision(result, APP_URL);
 
-  res.json({ success: true, result });
+  res.json({
+    success: true,
+    result,
+    discordSent: discordRes.success,
+    discordError: discordRes.error,
+  });
 });
 
 // ==================== CADET HISTORY LOOKUP ====================

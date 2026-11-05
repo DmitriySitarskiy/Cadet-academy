@@ -173,12 +173,13 @@ export const api = {
   async submitDecision(
     id: string,
     decision: 'passed' | 'failed' | 'retake_allowed',
-    comment: string
+    comment: string,
+    threadId?: string
   ): Promise<any> {
     const res = await fetch(`/api/results/${id}/decision`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decision, comment }),
+      body: JSON.stringify({ decision, comment, threadId }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Помилка винесення вердикту');

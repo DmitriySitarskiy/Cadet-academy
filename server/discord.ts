@@ -159,11 +159,13 @@ export async function sendDiscordExamSubmission(
     }
 
     const data = await response.json().catch(() => ({}));
-    if (data && (data.channel_id || data.id)) {
-      result.discordThreadId = data.channel_id || data.id;
+    // In Discord Forum channels, the created thread ID is returned in channel_id or id or thread.id
+    const rawCaptured = data?.channel_id || data?.thread?.id || data?.id;
+    if (rawCaptured) {
+      result.discordThreadId = String(rawCaptured).trim();
       saveDb();
     }
-    logEntry.response = 'Успішно надіслано в Discord канал/форум!';
+    logEntry.response = `Успішно надіслано в Discord! ID гілки: ${result.discordThreadId || 'не визначено'}`;
     logEntry.success = true;
     db.discordLogs.unshift(logEntry);
     saveDb();
@@ -200,13 +202,19 @@ export async function sendDiscordInstructorDecision(
     color = 0x8b5cf6; // Purple
   }
 
+  const rawThread = (result.discordThreadId || '').trim();
+  // Extract snowflake digits (typically 17-20 digits in Discord) if a URL or text was stored
+  const urlMatches = rawThread.match(/(\d{17,20})/g);
+  // If multiple snowflakes (like /channels/GUILD_ID/CHANNEL_ID/THREAD_ID), the thread ID is the last one
+  const cleanThreadId = urlMatches ? urlMatches[urlMatches.length - 1] : (rawThread && /^\d+$/.test(rawThread) ? rawThread : null);
+  const hasThreadId = Boolean(cleanThreadId);
+
   const payload: any = {
     username: `${db.settings.academyName} | Штаб Академії`,
     avatar_url: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=128&q=80',
     content: result.cadetDiscord
       ? `📢 <@${result.cadetDiscord}>, інструктор оновив статус вашого іспиту!`
       : `Оновлено статус іспиту кадета ${result.cadetNickname}`,
-    thread_name: `Вердикт: ${result.testTitle} — ${result.cadetNickname} (${result.cadetStatic})`.slice(0, 100),
     embeds: [
       {
         title: `${statusEmoji} ВЕРДИКТ ІНСТРУКТОРА: ${statusText}`,
@@ -237,6 +245,12 @@ export async function sendDiscordInstructorDecision(
     ],
   };
 
+  // CRITICAL: Discord Forum API forbids thread_name when replying to an existing thread_id!
+  // Only supply thread_name if we DO NOT have a thread_id (so it can create a new thread as fallback).
+  if (!hasThreadId) {
+    payload.thread_name = `Вердикт: ${result.testTitle} — ${result.cadetNickname} (${result.cadetStatic})`.slice(0, 100);
+  }
+
   const logEntry: DiscordLogEntry = {
     id: `log_dec_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     timestamp: new Date().toISOString(),
@@ -256,7 +270,7 @@ export async function sendDiscordInstructorDecision(
   }
 
   try {
-    const threadParam = result.discordThreadId ? `&thread_id=${result.discordThreadId}` : '';
+    const threadParam = hasThreadId ? `&thread_id=${cleanThreadId}` : '';
     const targetUrl = webhookUrl.includes('?')
       ? `${webhookUrl}&wait=true${threadParam}`
       : `${webhookUrl}?wait=true${threadParam}`;

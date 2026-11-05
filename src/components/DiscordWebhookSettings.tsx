@@ -97,6 +97,15 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
     setTesting(true);
     setTestResult(null);
     try {
+      // Auto-save webhook settings so it is persisted for all future tests
+      await api.updateSettings({
+        discordWebhookUrl: webhookUrl.trim(),
+        discordForumThreadNameFormat: threadFormat.trim(),
+        academyName: academyName.trim(),
+        factionTag: factionTag.trim(),
+      });
+      onRefreshSettings();
+
       const res = await api.testDiscordWebhook(webhookUrl.trim());
       setTestResult({
         success: true,
