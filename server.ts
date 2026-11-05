@@ -27,7 +27,8 @@ app.use(async (req, res, next) => {
 
 // ==================== ТЕСТ ПІДКЛЮЧЕННЯ ДО SUPABASE ====================
 app.get('/api/test-db', async (req, res) => {
-  const url = process.env.SUPABASE_URL?.trim();
+  const rawUrl = process.env.SUPABASE_URL?.trim() || '';
+  const url = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
   const key = (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY)?.trim();
 
   const diagnostics: any = {
