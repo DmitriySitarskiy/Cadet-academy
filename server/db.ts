@@ -41,15 +41,12 @@ const defaultSettings: AppSettings = {
   roleAuditLogs: [],
 };
 
-const defaultUsers: User[] = [
-  {
-    id: 'usr_sheriff_root',
-    name: 'Шериф Департаменту',
-    role: 'leader',
-    staticId: '#0001',
-    authMethod: 'manual',
-  },
-];
+const defaultUsers: User[] = [];
+function sanitizeUsers(users: User[] = []): User[] {
+  const legacy = new Set(['usr_leader_1', 'usr_inst_1', 'usr_inst_2', 'usr_initial_admin', 'usr_sheriff_root']);
+  return users.filter((u) => !legacy.has(u.id));
+}
+
 
 async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
   if (!SUPABASE_URL || !SUPABASE_KEY) return null;
@@ -107,7 +104,7 @@ function initDbSync(): DatabaseSchema {
       const parsed = JSON.parse(raw);
       return {
         settings: { ...defaultSettings, ...(parsed.settings || {}) },
-        users: parsed.users?.length ? parsed.users : defaultUsers,
+        users: sanitizeUsers(parsed.users || []),
         tests: parsed.tests || [],
         tokens: parsed.tokens || [],
         results: parsed.results || [],
@@ -143,7 +140,7 @@ export async function ensureDbLoaded(): Promise<void> {
   if (cloudDb) {
     dbInstance = {
       settings: { ...defaultSettings, ...(cloudDb.settings || {}) },
-      users: cloudDb.users?.length ? cloudDb.users : defaultUsers,
+      users: sanitizeUsers(cloudDb.users || []),
       tests: cloudDb.tests || [],
       tokens: cloudDb.tokens || [],
       results: cloudDb.results || [],

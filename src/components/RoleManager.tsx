@@ -39,6 +39,30 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
   const [discordInstructorRoleId, setDiscordInstructorRoleId] = useState('');
   const [discordClientId, setDiscordClientId] = useState('');
   const [discordClientSecret, setDiscordClientSecret] = useState('');
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [passSubmitting, setPassSubmitting] = useState(false);
+  const [passSuccess, setPassSuccess] = useState<string | null>(null);
+  const [passError, setPassError] = useState<string | null>(null);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPass || !newPass) return;
+    setPassSubmitting(true);
+    setPassError(null);
+    setPassSuccess(null);
+    try {
+      const res = await api.changeCuratorPassword({ currentPassword: currentPass, newPassword: newPass });
+      setPassSuccess(res.message);
+      setCurrentPass('');
+      setNewPass('');
+      setTimeout(() => setPassSuccess(null), 4000);
+    } catch (err: any) {
+      setPassError(err.message || 'Помилка зміни пароля');
+    } finally {
+      setPassSubmitting(false);
+    }
+  };
 
   // Confirmation Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -422,6 +446,63 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
           </div>
         )}
       </form>
+
+            {/* Блок зміни пароля Куратора */}
+      {isLeader && (
+        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-amber-400" />
+              <h3 className="text-sm font-bold text-white">Безпека: Зміна пароля Куратора</h3>
+            </div>
+            <span className="text-[11px] text-slate-500 font-mono">Curator Access</span>
+          </div>
+          <p className="text-xs text-slate-400">
+            Використовуйте цей розділ для зміни пароля Куратора (наприклад, під час зміни лідерів).
+          </p>
+          <form onSubmit={handleUpdatePassword} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Поточний пароль:</label>
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={currentPass}
+                onChange={(e) => setCurrentPass(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Новий пароль:</label>
+              <input
+                type="password"
+                required
+                placeholder="Мінімум 4 символи"
+                value={newPass}
+                onChange={(e) => setNewPass(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={passSubmitting}
+              className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
+            >
+              {passSubmitting ? "Збереження..." : "Оновити пароль"}
+            </button>
+          </form>
+          {passSuccess && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold">
+              ✅ {passSuccess}
+            </div>
+          )}
+          {passError && (
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-semibold">
+              ❌ {passError}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Role Audit History Log */}
       <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">

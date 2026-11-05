@@ -148,7 +148,7 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            Резервний вхід для Шерифа
+            Вхід для Куратора
           </button>
         </div>
 
@@ -199,7 +199,7 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
         {activeTab === 'backup' && (
           <form onSubmit={handleBackupLogin} className="p-6 space-y-4">
             <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 leading-relaxed">
-              👑 <strong>Резервний доступ Шерифа:</strong> використовується для первинного налаштування Discord ID серверів та ролей.
+              🔒 <strong>Вхід Куратора фракції:</strong> службовий доступ для конфігурації системи та зміни параметрів.
             </div>
 
             <div>
@@ -208,7 +208,7 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="sheriff або admin"
+                placeholder="Введіть логін..."
                 value={loginUsername}
                 onChange={(e) => setLoginUsername(e.target.value)}
                 required
@@ -222,7 +222,7 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
               </label>
               <input
                 type="password"
-                placeholder="За замовчуванням 7777"
+                placeholder="••••••••"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
                 required
