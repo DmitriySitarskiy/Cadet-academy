@@ -66,7 +66,7 @@ async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
       }
     }
   } catch (err) {
-    console.warn('Не вдалося отримати дані з Supabase, fallback на локальний диск:', err);
+    console.warn('Не вдалося отримати дані з Supabase:', err);
   }
   return null;
 }
@@ -93,21 +93,7 @@ async function pushToSupabase(data: DatabaseSchema): Promise<void> {
   }
 }
 
-async function initDb(): Promise<DatabaseSchema> {
-  // 1. Спочатку перевіряємо Supabase
-  const cloudDb = await fetchFromSupabase();
-  if (cloudDb) {
-    return {
-      settings: { ...defaultSettings, ...(cloudDb.settings || {}) },
-      users: cloudDb.users?.length ? cloudDb.users : defaultUsers,
-      tests: cloudDb.tests || [],
-      tokens: cloudDb.tokens || [],
-      results: cloudDb.results || [],
-      discordLogs: cloudDb.discordLogs || [],
-    };
-  }
-
-  // 2. Локальний диск (fallback)
+function initDbSync(): DatabaseSchema {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -137,8 +123,6 @@ async function initDb(): Promise<DatabaseSchema> {
     discordLogs: [],
   };
 
-  // Зберігаємо і в хмару, і локально
-  pushToSupabase(initialDb).catch(() => {});
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(initialDb, null, 2), 'utf-8');
   } catch {}
@@ -146,14 +130,33 @@ async function initDb(): Promise<DatabaseSchema> {
   return initialDb;
 }
 
-let dbInstance: DatabaseSchema = await initDb();
+// 1. Початкова синхронна ініціалізація БЕЗ top-level await
+let dbInstance: DatabaseSchema = initDbSync();
+let lastCloudFetchTime = 0;
+
+// 2. Функція підвантаження свіжих даних із Supabase (кеш на 5 секунд)
+export async function ensureDbLoaded(): Promise<void> {
+  if (Date.now() - lastCloudFetchTime < 5000) return;
+  const cloudDb = await fetchFromSupabase();
+  if (cloudDb) {
+    dbInstance = {
+      settings: { ...defaultSettings, ...(cloudDb.settings || {}) },
+      users: cloudDb.users?.length ? cloudDb.users : defaultUsers,
+      tests: cloudDb.tests || [],
+      tokens: cloudDb.tokens || [],
+      results: cloudDb.results || [],
+      discordLogs: cloudDb.discordLogs || [],
+    };
+  }
+  lastCloudFetchTime = Date.now();
+}
 
 export function getDb(): DatabaseSchema {
   return dbInstance;
 }
 
 export function saveDb(): void {
-  // Зберігаємо на локальний диск
+  // Зберігаємо локально
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -163,7 +166,7 @@ export function saveDb(): void {
     console.error('Помилка запису db.json:', err);
   }
 
-  // І відправляємо в Supabase для постійного збереження
+  // Зберігаємо в Supabase
   pushToSupabase(dbInstance).catch((err) => {
     console.error('Supabase async save error:', err);
   });

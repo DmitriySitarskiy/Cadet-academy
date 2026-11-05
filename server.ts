@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-import { getDb, saveDb } from './server/db.js';
+import { getDb, saveDb, ensureDbLoaded } from './server/db.js';
 import { sendDiscordExamSubmission, sendDiscordInstructorDecision } from './server/discord.js';
 import { ExamToken, ExamResult, AnswerSubmission, AntiCheatEvent, User, UserRole } from './src/types.js';
 
@@ -15,6 +15,15 @@ const PORT = Number(process.env.PORT) || 3000;
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 
 app.use(express.json({ limit: '10mb' }));
+
+app.use(async (req, res, next) => {
+  try {
+    await ensureDbLoaded();
+  } catch (err) {
+    console.warn('Помилка завантаження бази з Supabase:', err);
+  }
+  next();
+});
 
 // Active user tracking
 let currentUserId = 'usr_initial_admin';
