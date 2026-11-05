@@ -10,6 +10,21 @@ dotenv.config();
 
 const __dirname = process.cwd();
 
+export const app = express();
+const PORT = Number(process.env.PORT) || 3000;
+const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
+
+app.use(express.json({ limit: '10mb' }));
+
+app.use(async (req, res, next) => {
+  try {
+    await ensureDbLoaded();
+  } catch (err) {
+    console.warn('Помилка завантаження бази з Supabase:', err);
+  }
+  next();
+});
+
 // ==================== ТЕСТ ПІДКЛЮЧЕННЯ ДО SUPABASE ====================
 app.get('/api/test-db', async (req, res) => {
   const url = process.env.SUPABASE_URL?.trim();
@@ -76,21 +91,6 @@ app.get('/api/test-db', async (req, res) => {
     verdict: isSuccess ? '✅ База даних Supabase підключена і працює!' : '❌ Помилка зв’язку з Supabase',
     diagnostics,
   });
-});
-
-export const app = express();
-const PORT = Number(process.env.PORT) || 3000;
-const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
-
-app.use(express.json({ limit: '10mb' }));
-
-app.use(async (req, res, next) => {
-  try {
-    await ensureDbLoaded();
-  } catch (err) {
-    console.warn('Помилка завантаження бази з Supabase:', err);
-  }
-  next();
 });
 
 // Active user tracking
