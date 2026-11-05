@@ -3,7 +3,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-import { createServer as createViteServer } from 'vite';
 import { getDb, saveDb } from './server/db.js';
 import { sendDiscordExamSubmission, sendDiscordInstructorDecision } from './server/discord.js';
 import { ExamToken, ExamResult, AnswerSubmission, AntiCheatEvent, User, UserRole } from './src/types.js';
@@ -1068,12 +1067,20 @@ app.get('/api/cadets/history', (req, res) => {
 // ==================== VITE SPA & DEV MIDDLEWARE ====================
 
 async function startServer() {
+  // Якщо код працює на Netlify, сервер слухати не потрібно і Vite не потрібен:
+  // Netlify сам автоматично роздає статичні файли фронтенду з папки dist
+  if (process.env.NETLIFY) {
+    return;
+  }
+
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.resolve(__dirname, 'dist')));
     app.get('*', (req, res) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   } else {
+    // Динамічний імпорт: Vite завантажується ТІЛЬКИ локально під час розробки
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -1081,12 +1088,13 @@ async function startServer() {
     app.use(vite.middlewares);
   }
 
-  if (process.env.NODE_ENV !== 'production' && !process.env.NETLIFY) {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const port = PORT || 3000;
+  app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
   });
-  }
 }
 
-startServer();
+// Запускаємо локальний сервер тільки якщо це НЕ Netlify
+if (!process.env.NETLIFY) {
+  startServer();
+}

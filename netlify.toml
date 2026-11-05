@@ -4,18 +4,26 @@
 
 [functions]
   directory = "netlify/functions"
-  
-# Redirect all API calls to server or functions (if using Netlify Functions)
-# [[redirects]]
-#   from = "/api/*"
-#   to = "/.netlify/functions/api/:splat"
-#   status = 200
+  node_bundler = "esbuild"
+  external_node_modules = ["vite", "lightningcss", "@vitejs/devtools"]
 
-# Single Page Application (SPA) routing for cadet and instructor links
+[functions."*"]
+  node_bundler = "esbuild"
+
+# 1. Запити до API перенаправляємо на функцію
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# 2. Колбек від Discord також відправляємо у функцію!
+[[redirects]]
+  from = "/auth/callback"
+  to = "/.netlify/functions/api/auth/callback"
+  status = 200
+
+# 3. Усі інші запити - у React
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[build.environment]
-  NODE_VERSION = "20"
