@@ -85,6 +85,7 @@ app.post('/api/discord/test', async (req, res) => {
         username: `${db.settings.academyName} | Тест`,
         avatar_url: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=128&q=80',
         content: 'Тестове повідомлення від Системи Онлайн-Тестування Академії Кадетів.',
+        thread_name: 'Тестова перевірка інтеграції Discord',
         embeds: [
           {
             title: 'Тестова перевірка Discord Webhook',

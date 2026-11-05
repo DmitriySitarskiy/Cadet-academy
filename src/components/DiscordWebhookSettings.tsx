@@ -129,15 +129,15 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start min-w-0">
         {/* Left Column: Settings Form (6 cols) */}
-        <div className="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
+        <div className="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-6 min-w-0 w-full">
           <h2 className="text-base font-bold text-white flex items-center gap-2 pb-3 border-b border-slate-800">
-            <Radio className="w-4 h-4 text-amber-400" />
-            Параметри вебхука та фракції
+            <Radio className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>Параметри вебхука та фракції</span>
           </h2>
 
-          <form onSubmit={handleSave} className="space-y-4">
+          <form onSubmit={handleSave} className="space-y-4 min-w-0">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
                 Discord Webhook URL (Forum або текстовий канал)
@@ -147,7 +147,7 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 placeholder="https://discord.com/api/webhooks/123456.../abcdef..."
                 value={webhookUrl}
                 onChange={(e) => setWebhookUrl(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-amber-300 font-mono placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-amber-300 font-mono placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors break-all"
               />
               <span className="text-[11px] text-slate-500 mt-1 block">
                 Якщо залишити порожнім, система зберігатиме всі повідомлення у локальний Discord-симулятор.
@@ -164,7 +164,7 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 onChange={(e) => setThreadFormat(e.target.value)}
                 className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
               />
-              <div className="text-[10px] text-slate-500 mt-1 flex gap-2">
+              <div className="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2">
                 <span>Змінні: <code>{'{test}'}</code>, <code>{'{cadet}'}</code>, <code>{'{static}'}</code></span>
               </div>
             </div>
@@ -199,14 +199,14 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
 
             {saveSuccess && (
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                Налаштування успішно збережено!
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Налаштування успішно збережено!</span>
               </div>
             )}
 
             {testResult && (
               <div
-                className={`p-3 rounded-xl border text-xs font-medium flex items-start gap-2 ${
+                className={`p-3 rounded-xl border text-xs font-medium flex items-start gap-2 break-words ${
                   testResult.success
                     ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
                     : 'bg-red-500/10 border-red-500/20 text-red-300'
@@ -217,7 +217,7 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 ) : (
                   <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                 )}
-                <div>{testResult.message}</div>
+                <div className="break-all">{testResult.message}</div>
               </div>
             )}
 
@@ -236,8 +236,8 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 disabled={testing}
                 className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-700 disabled:opacity-50"
               >
-                <Send className="w-3.5 h-3.5 text-amber-400" />
-                {testing ? 'Надсилання...' : 'Перевірити інтеграцію'}
+                <Send className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>{testing ? 'Надсилання...' : 'Перевірити інтеграцію'}</span>
               </button>
             </div>
           </form>
@@ -245,8 +245,8 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
           {/* Setup Guide */}
           <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
             <div className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-              <Info className="w-4 h-4 text-amber-400" />
-              Як створити Forum-канал і вебхук за 2 хвилини:
+              <Info className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Як створити Forum-канал і вебхук за 2 хвилини:</span>
             </div>
             <ol className="text-xs text-slate-400 space-y-2 list-decimal list-inside leading-relaxed">
               <li>
@@ -266,35 +266,35 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
         </div>
 
         {/* Right Column: Live Discord Post Mockup & Simulator (6 cols) */}
-        <div className="lg:col-span-6 space-y-6">
+        <div className="lg:col-span-6 space-y-6 min-w-0 w-full overflow-hidden">
           {/* Discord Forum Simulator */}
-          <div className="rounded-2xl bg-[#313338] border border-[#232428] shadow-xl overflow-hidden text-[#dbdee1] font-sans">
+          <div className="rounded-2xl bg-[#313338] border border-[#232428] shadow-xl overflow-hidden text-[#dbdee1] font-sans w-full">
             {/* Discord Channel Header */}
-            <div className="px-4 py-2.5 bg-[#2b2d31] border-b border-[#1f2023] flex items-center justify-between text-xs font-semibold text-white">
-              <div className="flex items-center gap-2">
-                <span className="text-[#949ba4]">#</span>
-                <span>екзамени-кадетів (Discord Forum)</span>
+            <div className="px-4 py-2.5 bg-[#2b2d31] border-b border-[#1f2023] flex items-center justify-between gap-2 text-xs font-semibold text-white">
+              <div className="flex items-center gap-2 truncate">
+                <span className="text-[#949ba4] shrink-0">#</span>
+                <span className="truncate">екзамени-кадетів (Discord Forum)</span>
               </div>
-              <span className="text-[10px] text-[#949ba4] font-normal">Попередній перегляд посту</span>
+              <span className="text-[10px] text-[#949ba4] font-normal shrink-0">Попередній перегляд</span>
             </div>
 
             {/* Post Content */}
-            <div className="p-4 space-y-3 text-xs">
-              <div className="text-[#949ba4] font-mono text-[11px]">
-                Тема форуму: <strong className="text-white">📋 [ІСПИТ] Теорія: Законодавство — Bogdan_Kravchenko (#18392)</strong>
+            <div className="p-4 space-y-3 text-xs min-w-0">
+              <div className="text-[#949ba4] font-mono text-[11px] truncate">
+                Тема: <strong className="text-white">📋 [ІСПИТ] Теорія: Законодавство — Bogdan_Kravchenko (#18392)</strong>
               </div>
 
               {/* Bot User Header */}
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
-                  <Shield className="w-5 h-5" />
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                  <Shield className="w-4 h-4" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-white">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold text-white truncate max-w-[200px]">
                       {academyName || 'Поліцейська Академія'} | Екзаменатор
                     </span>
-                    <span className="bg-[#5865f2] text-white text-[9px] font-bold px-1 rounded uppercase tracking-wider">
+                    <span className="bg-[#5865f2] text-white text-[9px] font-bold px-1 rounded uppercase tracking-wider shrink-0">
                       ВЕБХУК
                     </span>
                   </div>
@@ -302,23 +302,23 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 </div>
               </div>
 
-              <div className="text-[#00a8fc] font-medium">
+              <div className="text-[#00a8fc] font-medium break-all">
                 @392817482910293847 завершив складання іспиту!
               </div>
 
               {/* Discord Embed */}
-              <div className="rounded-md border-l-4 border-l-[#23a55a] bg-[#2b2d31] p-3.5 space-y-3">
-                <div className="font-bold text-white text-sm">
+              <div className="rounded-md border-l-4 border-l-[#23a55a] bg-[#2b2d31] p-3.5 space-y-3 min-w-0 overflow-hidden">
+                <div className="font-bold text-white text-sm break-words">
                   📋 Звіт з іспиту: Теорія: Законодавство та Процесуальний кодекс
                 </div>
-                <div className="text-xs text-[#b5bac1]">
+                <div className="text-xs text-[#b5bac1] break-words">
                   Кадет **Bogdan_Kravchenko** (#18392) здав роботу на розгляд інструкторського корпусу.
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#35373c] text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-[#35373c] text-xs">
                   <div>
                     <span className="text-[10px] text-[#949ba4] block uppercase font-bold">👤 Кадет</span>
-                    <span className="text-white font-medium">Bogdan_Kravchenko (#18392)</span>
+                    <span className="text-white font-medium break-words">Bogdan_Kravchenko (#18392)</span>
                   </div>
                   <div>
                     <span className="text-[10px] text-[#949ba4] block uppercase font-bold">🎯 Результат</span>
@@ -328,21 +328,21 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
 
                 <div className="pt-2 border-t border-[#35373c]">
                   <span className="text-[10px] text-[#949ba4] block uppercase font-bold mb-1">📊 Розшифровка тестів</span>
-                  <div className="text-[11px] text-[#dbdee1] font-mono bg-[#1e1f22] p-2 rounded">
-                    ✅ П1: Правильно (1/1)  |  ✅ П2: Правильно (1/1)  |  ✅ П3: Правильно (2/2)
+                  <div className="text-[11px] text-[#dbdee1] font-mono bg-[#1e1f22] p-2 rounded break-words leading-relaxed">
+                    ✅ П1: Правильно (1/1) · ✅ П2: Правильно (1/1) · ✅ П3: Правильно (2/2)
                   </div>
                 </div>
 
                 <div className="pt-2 border-t border-[#35373c]">
                   <span className="text-[10px] text-[#949ba4] block uppercase font-bold mb-1">🛡️ Протокол антисписування</span>
-                  <div className="text-[11px] text-[#23a55a]">
+                  <div className="text-[11px] text-[#23a55a] break-words">
                     ✅ Чисто (порушень не зафіксовано, кадет не залишав вкладку)
                   </div>
                 </div>
 
                 <div className="pt-2 border-t border-[#35373c]">
                   <span className="text-[10px] text-[#949ba4] block uppercase font-bold mb-1">🔗 Інспекція</span>
-                  <div className="text-[#00a8fc] underline font-medium">
+                  <div className="text-[#00a8fc] underline font-medium cursor-pointer">
                     [➡️ Відкрити результат та винести вердикт]
                   </div>
                 </div>
@@ -353,14 +353,14 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 <div className="text-[11px] text-[#949ba4] font-semibold">
                   Відповідь інструктора у гілку (після натискання «Зараховано»):
                 </div>
-                <div className="rounded-md border-l-4 border-l-[#23a55a] bg-[#2b2d31] p-3 text-xs space-y-1">
+                <div className="rounded-md border-l-4 border-l-[#23a55a] bg-[#2b2d31] p-3 text-xs space-y-1 min-w-0">
                   <div className="font-bold text-[#23a55a] flex items-center gap-1.5">
                     <span>🟢</span> ВЕРДИКТ ІНСТРУКТОРА: ЗАРАХОВАНО
                   </div>
                   <div className="text-[#dbdee1]">
                     👨‍🏫 Інструктор: <strong>Дмитро Марченко</strong>
                   </div>
-                  <div className="text-[#b5bac1] italic">
+                  <div className="text-[#b5bac1] italic break-words">
                     «Відмінне знання процесуального кодексу та грамотно описані дії на 10-55. Допущено до патрулювання другого ступеня.»
                   </div>
                 </div>
@@ -369,7 +369,7 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
           </div>
 
           {/* Recent Discord Dispatches Log */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 min-w-0 w-full">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-white uppercase tracking-wider">
                 Журнал надісланих вебхуків ({logs.length})
@@ -392,14 +392,14 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 logs.map((log) => (
                   <div
                     key={log.id}
-                    className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1"
+                    className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1 min-w-0"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-white">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-white truncate">
                         {log.cadetNickname} · {log.status}
                       </span>
                       <span
-                        className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                        className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
                           log.success
                             ? 'bg-emerald-500/10 text-emerald-400'
                             : 'bg-red-500/10 text-red-400'
@@ -408,7 +408,9 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                         {log.success ? 'Успіх' : 'Помилка'}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-400 line-clamp-1">{log.response}</div>
+                    <div className="text-[11px] text-slate-400 break-all line-clamp-2 leading-relaxed">
+                      {log.response}
+                    </div>
                     <div className="text-[10px] text-slate-500 font-mono">
                       {new Date(log.timestamp).toLocaleString('uk-UA')}
                     </div>

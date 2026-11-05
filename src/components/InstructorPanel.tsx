@@ -117,10 +117,10 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start min-w-0">
         {/* Left Column: Generator Form (7 cols) */}
-        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
-          <form onSubmit={handleGenerate} className="space-y-6">
+        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm min-w-0 w-full">
+          <form onSubmit={handleGenerate} className="space-y-6 min-w-0">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <h2 className="text-base font-semibold text-white flex items-center gap-2">
                 <Send className="w-4 h-4 text-amber-400" />
@@ -256,7 +256,7 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
 
           {/* Result Card */}
           {generatedResult && (
-            <div className="mt-6 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/30 space-y-4 animate-in fade-in duration-300">
+            <div className="mt-6 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/30 space-y-4 animate-in fade-in duration-300 min-w-0">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Check className="w-4 h-4" />
@@ -271,12 +271,12 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
                 <label className="block text-xs font-medium text-slate-300 mb-1">
                   Пряме посилання для кадета:
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <input
                     type="text"
                     readOnly
                     value={generatedResult.examLink}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-amber-300 font-mono select-all"
+                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-amber-300 font-mono select-all truncate"
                   />
                   <button
                     type="button"
@@ -297,13 +297,13 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
                   <button
                     type="button"
                     onClick={() => copyToClipboard(generatedResult.discordCopyTemplate, true)}
-                    className="text-xs text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1"
+                    className="text-xs text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1 shrink-0"
                   >
                     {copiedTemplate ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copiedTemplate ? 'Скопійовано для Discord!' : 'Скопіювати для Discord'}
+                    {copiedTemplate ? 'Скопійовано!' : 'Скопіювати для Discord'}
                   </button>
                 </div>
-                <pre className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 text-[11px] text-slate-300 whitespace-pre-wrap font-sans leading-relaxed">
+                <pre className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 text-[11px] text-slate-300 whitespace-pre-wrap font-sans leading-relaxed break-all max-h-48 overflow-y-auto">
                   {generatedResult.discordCopyTemplate}
                 </pre>
               </div>
@@ -323,7 +323,7 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
         </div>
 
         {/* Right Column: Recent Tokens & Live Status (5 cols) */}
-        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4 min-w-0 w-full">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div>
               <h3 className="text-sm font-semibold text-white">Видані посилання</h3>

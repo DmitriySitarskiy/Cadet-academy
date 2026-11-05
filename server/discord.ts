@@ -159,6 +159,10 @@ export async function sendDiscordExamSubmission(
     }
 
     const data = await response.json().catch(() => ({}));
+    if (data && (data.channel_id || data.id)) {
+      result.discordThreadId = data.channel_id || data.id;
+      saveDb();
+    }
     logEntry.response = 'Успішно надіслано в Discord канал/форум!';
     logEntry.success = true;
     db.discordLogs.unshift(logEntry);
@@ -202,6 +206,7 @@ export async function sendDiscordInstructorDecision(
     content: result.cadetDiscord
       ? `📢 <@${result.cadetDiscord}>, інструктор оновив статус вашого іспиту!`
       : `Оновлено статус іспиту кадета ${result.cadetNickname}`,
+    thread_name: `Вердикт: ${result.testTitle} — ${result.cadetNickname} (${result.cadetStatic})`.slice(0, 100),
     embeds: [
       {
         title: `${statusEmoji} ВЕРДИКТ ІНСТРУКТОРА: ${statusText}`,
@@ -251,9 +256,10 @@ export async function sendDiscordInstructorDecision(
   }
 
   try {
+    const threadParam = result.discordThreadId ? `&thread_id=${result.discordThreadId}` : '';
     const targetUrl = webhookUrl.includes('?')
-      ? `${webhookUrl}&wait=true`
-      : `${webhookUrl}?wait=true`;
+      ? `${webhookUrl}&wait=true${threadParam}`
+      : `${webhookUrl}?wait=true${threadParam}`;
 
     const response = await fetch(targetUrl, {
       method: 'POST',

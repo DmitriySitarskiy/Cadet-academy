@@ -109,6 +109,7 @@ export interface ExamResult {
   antiCheatEvents: AntiCheatEvent[];
   discordPosted: boolean;
   discordThreadUrl?: string;
+  discordThreadId?: string;
 }
 
 export interface AppSettings {

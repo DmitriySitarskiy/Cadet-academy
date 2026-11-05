@@ -26,93 +26,93 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-8 h-16">
+        <div className="flex items-center justify-between gap-3 sm:gap-6 h-16 min-w-0">
           {/* Zone 1: Wordmark & Shield */}
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-              <Shield className="w-6 h-6" />
+          <div className="flex items-center gap-2.5 shrink-0 min-w-0 max-w-[200px] sm:max-w-[280px]">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+              <Shield className="w-5 h-5" />
             </div>
-            <div>
-              <span className="text-base font-bold tracking-tight text-white block leading-tight whitespace-nowrap">
+            <div className="min-w-0 truncate">
+              <span className="text-sm sm:text-base font-bold tracking-tight text-white block leading-tight truncate">
                 {settings?.academyName || 'Академія Кадетів'}
               </span>
-              <span className="text-xs text-slate-400 block whitespace-nowrap">
+              <span className="text-[10px] sm:text-xs text-slate-400 block truncate">
                 {settings?.factionTag || 'Система іспитів та сертифікації'}
               </span>
             </div>
           </div>
 
-          {/* Zone 2: Navigation Links */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
+          {/* Zone 2: Navigation Links (Adaptive) */}
+          <nav className="hidden lg:flex items-center gap-1 xl:gap-3 text-xs xl:text-sm font-medium">
             <button
               onClick={() => onSelectTab('results')}
-              className={`whitespace-nowrap transition-colors flex items-center gap-2 py-1 ${
-                currentTab === 'results' ? 'text-amber-400 border-b-2 border-amber-400 font-semibold' : 'text-slate-400 hover:text-slate-200'
+              className={`whitespace-nowrap transition-colors flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${
+                currentTab === 'results' ? 'text-amber-400 bg-amber-400/10 font-semibold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <FileText className="w-4 h-4" />
-              Журнал результатів
+              <FileText className="w-3.5 h-3.5 shrink-0" />
+              <span>Результати</span>
             </button>
 
             <button
               onClick={() => onSelectTab('generator')}
-              className={`whitespace-nowrap transition-colors flex items-center gap-2 py-1 ${
-                currentTab === 'generator' ? 'text-amber-400 border-b-2 border-amber-400 font-semibold' : 'text-slate-400 hover:text-slate-200'
+              className={`whitespace-nowrap transition-colors flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${
+                currentTab === 'generator' ? 'text-amber-400 bg-amber-400/10 font-semibold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Send className="w-4 h-4" />
-              Видати посилання
+              <Send className="w-3.5 h-3.5 shrink-0" />
+              <span>Видати посилання</span>
             </button>
 
             <button
               onClick={() => onSelectTab('tests')}
-              className={`whitespace-nowrap transition-colors flex items-center gap-2 py-1 ${
-                currentTab === 'tests' ? 'text-amber-400 border-b-2 border-amber-400 font-semibold' : 'text-slate-400 hover:text-slate-200'
+              className={`whitespace-nowrap transition-colors flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${
+                currentTab === 'tests' ? 'text-amber-400 bg-amber-400/10 font-semibold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Shield className="w-4 h-4" />
-              Банк тестів
+              <Shield className="w-3.5 h-3.5 shrink-0" />
+              <span>Банк тестів</span>
             </button>
 
             <button
               onClick={() => onSelectTab('discord')}
-              className={`whitespace-nowrap transition-colors flex items-center gap-2 py-1 ${
-                currentTab === 'discord' ? 'text-amber-400 border-b-2 border-amber-400 font-semibold' : 'text-slate-400 hover:text-slate-200'
+              className={`whitespace-nowrap transition-colors flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${
+                currentTab === 'discord' ? 'text-amber-400 bg-amber-400/10 font-semibold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Radio className="w-4 h-4" />
-              Discord Webhook
+              <Radio className="w-3.5 h-3.5 shrink-0" />
+              <span>Discord Webhook</span>
             </button>
 
             <button
               onClick={() => onSelectTab('cadets')}
-              className={`whitespace-nowrap transition-colors flex items-center gap-2 py-1 ${
-                currentTab === 'cadets' ? 'text-amber-400 border-b-2 border-amber-400 font-semibold' : 'text-slate-400 hover:text-slate-200'
+              className={`whitespace-nowrap transition-colors flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${
+                currentTab === 'cadets' ? 'text-amber-400 bg-amber-400/10 font-semibold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <History className="w-4 h-4" />
-              Історія кадетів
+              <History className="w-3.5 h-3.5 shrink-0" />
+              <span>Історія</span>
             </button>
           </nav>
 
           {/* Zone 3: Active User Switcher & Primary Action */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="relative">
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-xs text-slate-200 transition-colors"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-xs text-slate-200 transition-colors"
                 title="Перемкнути роль / акаунт"
               >
-                <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                <div className="text-left">
-                  <div className="font-semibold text-white truncate max-w-[120px]">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                <div className="text-left min-w-0">
+                  <div className="font-semibold text-white truncate max-w-[85px] sm:max-w-[130px]">
                     {currentUser?.name || 'Інструктор'}
                   </div>
-                  <div className="text-[10px] text-amber-400 uppercase tracking-wider font-mono">
-                    {currentUser?.role === 'leader' ? 'Лідер фракції' : 'Інструктор'}
+                  <div className="text-[9px] text-amber-400 uppercase tracking-wider font-mono truncate">
+                    {currentUser?.role === 'leader' ? 'Лідер' : 'Інструктор'}
                   </div>
                 </div>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               </button>
 
               {userDropdownOpen && (
