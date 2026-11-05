@@ -227,7 +227,7 @@ app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
     });
     const discordUser = await userRes.json();
 
-    let assignedRole: UserRole = 'instructor';
+    let assignedRole: UserRole | null = null;
     let guildRoles: string[] = [];
 
     if (db.settings.discordGuildId) {
@@ -247,12 +247,41 @@ app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
       }
     }
 
+     if (!assignedRole) {
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Доступ заборонено</title>
+            <style>
+              body { background: #090d16; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
+              .card { background: #0f172a; border: 1px solid #ef4444; padding: 32px; border-radius: 16px; max-width: 380px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <h2 style="color: #ef4444; margin: 0 0 12px 0;">⛔ Доступ заборонено</h2>
+              <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin-bottom: 20px;">
+                У вашому Discord-акаунті відсутня роль <strong>Інструктора</strong> або <strong>Шерифа</strong> на сервері фракції.<br><br>
+                Кабінет призначено суто для керівного та викладацького складу.
+              </p>
+              <button onclick="window.close()" style="padding: 10px 24px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                Закрити вікно
+              </button>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
     const existingUser = db.users.find(
       (u) => u.discordId && (u.discordId === discordUser.id || u.discordId === discordUser.username)
     );
 
     if (existingUser && !db.settings.discordGuildId) {
       assignedRole = existingUser.role;
+    } else {
+      assignedRole = 'cadet';
     }
 
     const displayName = discordUser.global_name || discordUser.username;
@@ -611,7 +640,7 @@ app.post('/api/exam/:token/submit', async (req, res) => {
         isCorrect,
       });
     }
-      
+
     // 3. Відкритий кейс
     else if (q.type === 'open') {
       hasOpen = true;

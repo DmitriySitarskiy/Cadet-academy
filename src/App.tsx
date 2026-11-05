@@ -139,6 +139,60 @@ export default function App() {
     return <ExamTaker token={cadetExamToken} onExit={handleExitCadetExam} />;
   }
 
+  const isStaff = currentUser && (currentUser.role === 'leader' || currentUser.role === 'instructor');
+  
+  if (!isStaff && !loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full p-8 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl text-center space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+            <span className="text-3xl">🛡️</span>
+          </div>
+
+          <div>
+            <h1 className="text-xl font-bold text-white">
+              {settings?.academyName || 'Академія Кадетів'}
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              {settings?.factionTag || 'Службовий портал викладацького корпусу'}
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800/80 text-xs text-slate-400 text-left space-y-2">
+            <div className="font-semibold text-amber-300 flex items-center gap-1.5">
+              <span>🔒</span> Закрита службова зона
+            </div>
+            <p className="leading-relaxed">
+              Доступ до кабінету дозволено виключно <strong>Інструкторам Академії</strong> та <strong>Шерифу / Куратору</strong>.
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Кадети складають іспити за персональними посиланнями від інструкторів. Власний кабінет для кадетів не передбачено регламентом.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setShowDiscordAuth(true)}
+            className="w-full py-3 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#5865F2]/20 transition-all cursor-pointer"
+          >
+            <span>Вхід для Інструкторів та Шерифа</span>
+          </button>
+        </div>
+
+        <DiscordAuthModal
+          isOpen={showDiscordAuth}
+          onClose={() => setShowDiscordAuth(false)}
+          currentUser={currentUser}
+          settings={settings}
+          onUserChanged={(u) => {
+            localStorage.setItem('cadet_current_user_id', u.id);
+            setCurrentUser(u);
+            loadAllData();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased">
       <Header

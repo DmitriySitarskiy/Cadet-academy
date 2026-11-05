@@ -523,9 +523,9 @@ export const ExamTaker: React.FC<ExamTakerProps> = ({ token, onExit }) => {
 
           <button
             onClick={onExit}
-            className="w-full py-3 px-6 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs transition-colors"
+            className="w-full py-3 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors border border-slate-700 cursor-pointer"
           >
-            Повернутися на головну
+            Завершити та закрити сеанс
           </button>
         </div>
       </div>
