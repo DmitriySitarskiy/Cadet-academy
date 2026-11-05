@@ -13,6 +13,8 @@ import { ResultReviewModal } from './components/ResultReviewModal';
 import { CadetLookupModal } from './components/CadetLookupModal';
 import { InstructorAccountsModal } from './components/InstructorAccountsModal';
 import { ExamTaker } from './components/ExamTaker';
+import { RoleManager } from './components/RoleManager';
+import { DiscordAuthModal } from './components/DiscordAuthModal';
 import { User, AppSettings, TestConfig, ExamResult } from './types';
 import { api } from './services/api';
 
@@ -31,6 +33,7 @@ export default function App() {
   const [reviewResultId, setReviewResultId] = useState<string | null>(null);
   const [showCadetLookup, setShowCadetLookup] = useState<boolean>(false);
   const [showInstructorsModal, setShowInstructorsModal] = useState<boolean>(false);
+  const [showDiscordAuth, setShowDiscordAuth] = useState<boolean>(false);
 
   // Check URL hash / query on initial load or change
   useEffect(() => {
@@ -135,6 +138,7 @@ export default function App() {
         onSwitchUser={handleSwitchUser}
         settings={settings}
         onOpenInstructorsModal={() => setShowInstructorsModal(true)}
+        onOpenDiscordAuth={() => setShowDiscordAuth(true)}
       />
 
       {/* Adaptive Mobile/Tablet Tab Bar */}
@@ -171,6 +175,14 @@ export default function App() {
             }`}
           >
             Discord Webhook
+          </button>
+          <button
+            onClick={() => setCurrentTab('roles')}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors ${
+              currentTab === 'roles' ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-800'
+            }`}
+          >
+            Ролі та Доступ
           </button>
           <button
             onClick={() => setShowCadetLookup(true)}
@@ -218,6 +230,15 @@ export default function App() {
             {currentTab === 'discord' && (
               <DiscordWebhookSettings
                 settings={settings}
+                currentUser={currentUser}
+                onRefreshSettings={loadAllData}
+              />
+            )}
+
+            {currentTab === 'roles' && (
+              <RoleManager
+                settings={settings}
+                currentUser={currentUser}
                 onRefreshSettings={loadAllData}
               />
             )}
@@ -256,6 +277,18 @@ export default function App() {
           onRefresh={loadAllData}
         />
       )}
+
+      {/* Discord Role Authentication Modal */}
+      <DiscordAuthModal
+        isOpen={showDiscordAuth}
+        onClose={() => setShowDiscordAuth(false)}
+        currentUser={currentUser}
+        settings={settings}
+        onUserChanged={(u) => {
+          setCurrentUser(u);
+          loadAllData();
+        }}
+      />
     </div>
   );
 }

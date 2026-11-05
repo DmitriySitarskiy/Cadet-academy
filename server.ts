@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { getDb, saveDb } from './server/db.js';
 import { sendDiscordExamSubmission, sendDiscordInstructorDecision } from './server/discord.js';
-import { ExamToken, ExamResult, AnswerSubmission, AntiCheatEvent, User } from './src/types.js';
+import { ExamToken, ExamResult, AnswerSubmission, AntiCheatEvent, User, UserRole } from './src/types.js';
 
 dotenv.config();
 
@@ -19,8 +19,24 @@ const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 
 app.use(express.json({ limit: '10mb' }));
 
-// Middleware to simulate session / user
-let currentUserId = 'usr_inst_1'; // Default active user (Instructor)
+// Active user tracking
+let currentUserId = 'usr_leader_1'; // Default active user (Leader)
+
+function getCurrentUser(): User {
+  const db = getDb();
+  return db.users.find((u) => u.id === currentUserId) || db.users[0];
+}
+
+// Middleware: restrict actions to Faction Leader only
+function requireLeader(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const user = getCurrentUser();
+  if (user.role !== 'leader') {
+    return res.status(403).json({
+      error: 'Доступ обмежено: Тільки Лідер фракції має право керувати вебхуком, змінювати ролі та конфігурацію системи.',
+    });
+  }
+  next();
+}
 
 // Fisher-Yates shuffle
 function shuffleArray<T>(array: T[]): T[] {
@@ -32,11 +48,11 @@ function shuffleArray<T>(array: T[]): T[] {
   return result;
 }
 
-// ==================== AUTH & SESSION ====================
+// ==================== AUTH & DISCORD ROLE AUTHORIZATION ====================
 
 app.get('/api/session', (req, res) => {
   const db = getDb();
-  const user = db.users.find((u) => u.id === currentUserId) || db.users[0];
+  const user = getCurrentUser();
   res.json({
     user,
     settings: db.settings,
@@ -55,21 +71,247 @@ app.post('/api/session/switch', (req, res) => {
   res.status(404).json({ error: 'Користувача не знайдено' });
 });
 
-// ==================== SETTINGS & DISCORD ====================
+// 1. Get Discord OAuth Authorization URL
+app.get('/api/auth/discord/url', (req, res) => {
+  const db = getDb();
+  const clientId = db.settings.discordClientId || process.env.DISCORD_CLIENT_ID;
+  const redirectUri = `${APP_URL}/auth/callback`;
+
+  if (!clientId) {
+    return res.status(400).json({
+      error: 'Discord Client ID не налаштовано. Лідер може вказати його у вкладці «Ролі та Доступ» або через змінну DISCORD_CLIENT_ID.',
+    });
+  }
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'identify guilds guilds.members.read',
+  });
+
+  const authUrl = `https://discord.com/oauth2/authorize?${params.toString()}`;
+  res.json({ url: authUrl, redirectUri });
+});
+
+// 2. Discord OAuth Callback (handles both /auth/callback and /auth/callback/)
+app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
+  const { code, error } = req.query;
+  const db = getDb();
+  const clientId = db.settings.discordClientId || process.env.DISCORD_CLIENT_ID;
+  const clientSecret = db.settings.discordClientSecret || process.env.DISCORD_CLIENT_SECRET;
+  const redirectUri = `${APP_URL}/auth/callback`;
+
+  if (error || !code) {
+    return res.send(`
+      <html>
+        <body style="background:#0b1120;color:#f87171;font-family:sans-serif;padding:30px;text-align:center;">
+          <h3>Помилка авторизації в Discord</h3>
+          <p>${error || 'Код авторизації не отримано'}</p>
+          <button onclick="window.close()" style="padding:8px 16px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;">Закрити</button>
+        </body>
+      </html>
+    `);
+  }
+
+  try {
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId || '',
+        client_secret: clientSecret || '',
+        grant_type: 'authorization_code',
+        code: String(code),
+        redirect_uri: redirectUri,
+      }),
+    });
+
+    if (!tokenRes.ok) {
+      const errText = await tokenRes.text();
+      return res.send(`
+        <html>
+          <body style="background:#0b1120;color:#f87171;font-family:sans-serif;padding:30px;text-align:center;">
+            <h3>Помилка отримання токена Discord</h3>
+            <p style="font-size:12px;opacity:0.8;">${errText}</p>
+            <button onclick="window.close()" style="padding:8px 16px;background:#1e293b;color:#fff;border:none;border-radius:6px;cursor:pointer;">Закрити</button>
+          </body>
+        </html>
+      `);
+    }
+
+    const tokenData = await tokenRes.json();
+    const userRes = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const discordUser = await userRes.json();
+
+    // Check roles if Discord Guild is configured
+    let assignedRole: UserRole = 'instructor';
+    let guildRoles: string[] = [];
+
+    if (db.settings.discordGuildId) {
+      const memberRes = await fetch(
+        `https://discord.com/api/users/@me/guilds/${db.settings.discordGuildId}/member`,
+        {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        }
+      );
+
+      if (memberRes.ok) {
+        const memberData = await memberRes.json();
+        guildRoles = memberData.roles || [];
+        if (db.settings.discordLeaderRoleId && guildRoles.includes(db.settings.discordLeaderRoleId)) {
+          assignedRole = 'leader';
+        } else if (
+          db.settings.discordInstructorRoleId &&
+          guildRoles.includes(db.settings.discordInstructorRoleId)
+        ) {
+          assignedRole = 'instructor';
+        }
+      }
+    }
+
+    // Fallback: check if this discordId matches an existing user or fallback to leader/instructor
+    const existingUser = db.users.find(
+      (u) => u.discordId && (u.discordId === discordUser.id || u.discordId === discordUser.username)
+    );
+
+    if (existingUser && !db.settings.discordGuildId) {
+      assignedRole = existingUser.role;
+    }
+
+    const displayName = discordUser.global_name || discordUser.username;
+    let authedUser: User;
+
+    if (existingUser) {
+      existingUser.name = displayName;
+      existingUser.role = assignedRole;
+      existingUser.discordId = discordUser.id;
+      existingUser.discordUsername = discordUser.username;
+      existingUser.discordAvatar = discordUser.avatar
+        ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+        : undefined;
+      existingUser.authMethod = 'discord_oauth';
+      authedUser = existingUser;
+    } else {
+      authedUser = {
+        id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        name: displayName,
+        role: assignedRole,
+        staticId: `#${Math.floor(1000 + Math.random() * 9000)}`,
+        discordId: discordUser.id,
+        discordUsername: discordUser.username,
+        discordAvatar: discordUser.avatar
+          ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+          : undefined,
+        authMethod: 'discord_oauth',
+      };
+      db.users.push(authedUser);
+    }
+
+    currentUserId = authedUser.id;
+    saveDb();
+
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Авторизація Discord</title>
+          <style>
+            body { background: #090d16; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
+            .card { background: #0f172a; border: 1px solid #1e293b; padding: 32px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); max-width: 360px; }
+            .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; background: #fbbf24; color: #020617; margin-top: 8px; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h2 style="margin:0 0 12px 0; color:#10b981;">✅ Авторизація успішна</h2>
+            <p style="margin:0 0 8px 0; font-size: 14px; color: #cbd5e1;">Вітаємо, <strong>${authedUser.name}</strong>!</p>
+            <div class="badge">${authedUser.role === 'leader' ? 'Лідер фракції' : 'Інструктор Академії'}</div>
+            <p style="margin: 16px 0 0 0; font-size: 12px; color: #64748b;">Це вікно закриється автоматично...</p>
+          </div>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', user: ${JSON.stringify(authedUser)} }, '*');
+              window.close();
+            } else {
+              window.location.href = '/';
+            }
+          </script>
+        </body>
+      </html>
+    `);
+  } catch (err: any) {
+    res.status(500).send(`Помилка сервера: ${err.message}`);
+  }
+});
+
+// 3. Direct Discord verification by ID / Fast Role Simulator
+app.post('/api/auth/discord/direct-login', (req, res) => {
+  const { discordId, discordUsername, role, name, staticId } = req.body;
+  const db = getDb();
+
+  if (!discordId) {
+    return res.status(400).json({ error: 'Вкажіть Discord ID' });
+  }
+
+  // Find or create user
+  let user = db.users.find(
+    (u) => u.discordId === discordId.trim() || (discordUsername && u.discordUsername === discordUsername.trim())
+  );
+
+  const finalRole: 'leader' | 'instructor' = role === 'leader' ? 'leader' : 'instructor';
+
+  if (!user) {
+    user = {
+      id: `usr_dc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: name?.trim() || discordUsername?.trim() || `Discord_${discordId.slice(-4)}`,
+      role: finalRole,
+      staticId: staticId?.trim() || `#${Math.floor(1000 + Math.random() * 9000)}`,
+      discordId: discordId.trim(),
+      discordUsername: discordUsername?.trim() || discordId.trim(),
+      authMethod: 'discord_id',
+    };
+    db.users.push(user);
+  } else {
+    if (role) user.role = finalRole;
+    if (name) user.name = name.trim();
+    if (staticId) user.staticId = staticId.trim();
+    user.authMethod = 'discord_id';
+  }
+
+  currentUserId = user.id;
+  saveDb();
+
+  res.json({ success: true, user });
+});
+
+// Logout
+app.post('/api/auth/logout', (req, res) => {
+  const db = getDb();
+  // Reset to default instructor
+  currentUserId = db.users[0]?.id || 'usr_inst_1';
+  res.json({ success: true, user: getCurrentUser() });
+});
+
+// ==================== SETTINGS & DISCORD (LEADER PROTECTED) ====================
 
 app.get('/api/settings', (req, res) => {
   const db = getDb();
   res.json(db.settings);
 });
 
-app.post('/api/settings', (req, res) => {
+// ONLY Leader can update Webhook & general settings
+app.post('/api/settings', requireLeader, (req, res) => {
   const db = getDb();
   db.settings = { ...db.settings, ...req.body };
   saveDb();
   res.json({ success: true, settings: db.settings });
 });
 
-app.post('/api/discord/test', async (req, res) => {
+// ONLY Leader can test the Webhook
+app.post('/api/discord/test', requireLeader, async (req, res) => {
   const db = getDb();
   const webhookUrl = req.body.webhookUrl || db.settings.discordWebhookUrl;
   if (!webhookUrl) {
@@ -111,6 +353,82 @@ app.post('/api/discord/test', async (req, res) => {
   } catch (err: any) {
     res.status(500).json({ error: `Мережева помилка при надсиланні: ${err.message}` });
   }
+});
+
+// ==================== ROLE CONFIGURATION & CONFIRMATION SAFEGUARD ====================
+
+// ONLY Leader can rename roles, change Discord Role IDs with confirmation code/PIN
+app.post('/api/settings/roles', requireLeader, (req, res) => {
+  const db = getDb();
+  const {
+    roleTitles,
+    discordGuildId,
+    discordLeaderRoleId,
+    discordInstructorRoleId,
+    discordClientId,
+    discordClientSecret,
+    confirmationCode,
+    reason,
+  } = req.body;
+
+  const validPin = db.settings.leaderSecurityPin || '7777';
+  const isConfirmed =
+    confirmationCode === 'ПІДТВЕРДЖУЮ' ||
+    confirmationCode === 'ПІДТВЕРДИТИ' ||
+    confirmationCode === validPin;
+
+  if (!isConfirmed) {
+    return res.status(400).json({
+      error: `Невірний код підтвердження! Введіть слово "ПІДТВЕРДЖУЮ" або захисний PIN-код лідера (${validPin}).`,
+    });
+  }
+
+  const activeUser = getCurrentUser();
+  const oldTitles = { ...db.settings.roleTitles };
+  const oldLeaderRoleId = db.settings.discordLeaderRoleId || '';
+  const oldInstructorRoleId = db.settings.discordInstructorRoleId || '';
+
+  if (roleTitles) {
+    db.settings.roleTitles = {
+      leader: roleTitles.leader?.trim() || oldTitles.leader || 'Шеф Департаменту / Лідер',
+      instructor: roleTitles.instructor?.trim() || oldTitles.instructor || 'Інструктор Академії',
+      cadet: roleTitles.cadet?.trim() || oldTitles.cadet || 'Кадет Академії',
+    };
+  }
+
+  if (discordGuildId !== undefined) db.settings.discordGuildId = discordGuildId.trim();
+  if (discordLeaderRoleId !== undefined) db.settings.discordLeaderRoleId = discordLeaderRoleId.trim();
+  if (discordInstructorRoleId !== undefined) db.settings.discordInstructorRoleId = discordInstructorRoleId.trim();
+  if (discordClientId !== undefined) db.settings.discordClientId = discordClientId.trim();
+  if (discordClientSecret !== undefined) db.settings.discordClientSecret = discordClientSecret.trim();
+
+  // Create audit log entry for this role modification
+  const auditEntry = {
+    id: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    timestamp: new Date().toISOString(),
+    actorName: activeUser.name,
+    actorDiscordId: activeUser.discordId,
+    targetRole: 'instructor' as const,
+    oldTitle: `${oldTitles.leader} / ${oldTitles.instructor}`,
+    newTitle: `${db.settings.roleTitles.leader} / ${db.settings.roleTitles.instructor}`,
+    oldDiscordRoleId: `L:${oldLeaderRoleId || '—'} / I:${oldInstructorRoleId || '—'}`,
+    newDiscordRoleId: `L:${db.settings.discordLeaderRoleId || '—'} / I:${db.settings.discordInstructorRoleId || '—'}`,
+    reason: reason?.trim() || 'Зміна назв ролей та прив’язки Discord Role ID',
+  };
+
+  if (!db.settings.roleAuditLogs) {
+    db.settings.roleAuditLogs = [];
+  }
+  db.settings.roleAuditLogs.unshift(auditEntry);
+
+  saveDb();
+
+  res.json({
+    success: true,
+    settings: db.settings,
+    auditEntry,
+    message: 'Структуру ролей та прив’язку Discord успішно оновлено та зафіксовано в журналі аудиту!',
+  });
 });
 
 app.get('/api/discord/logs', (req, res) => {

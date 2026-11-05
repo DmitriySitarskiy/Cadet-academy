@@ -13,18 +13,22 @@ import {
   Shield,
   Layers,
 } from 'lucide-react';
-import { AppSettings, DiscordLogEntry } from '../types';
+import { AppSettings, DiscordLogEntry, User } from '../types';
 import { api } from '../services/api';
+import { Lock } from 'lucide-react';
 
 interface DiscordWebhookSettingsProps {
   settings: AppSettings | null;
+  currentUser?: User | null;
   onRefreshSettings: () => void;
 }
 
 export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
   settings,
+  currentUser,
   onRefreshSettings,
 }) => {
+  const isLeader = currentUser?.role === 'leader';
   const [webhookUrl, setWebhookUrl] = useState('');
   const [threadFormat, setThreadFormat] = useState('');
   const [academyName, setAcademyName] = useState('');
@@ -146,6 +150,20 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
             <span>Параметри вебхука та фракції</span>
           </h2>
 
+          {!isLeader && (
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-3">
+              <Lock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold text-amber-300">
+                  Доступ обмежено: Тільки Лідер фракції
+                </div>
+                <div className="text-[11px] text-amber-200/80 mt-1 leading-relaxed">
+                  Змінювати URL вебхука, шаблон гілок та проводити тестові запити має право виключно Лідер ({settings?.roleTitles?.leader || 'Шеф Департаменту'}). Інструктори мають доступ до видачі посилань та перевірки.
+                </div>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSave} className="space-y-4 min-w-0">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
@@ -156,7 +174,8 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 placeholder="https://discord.com/api/webhooks/123456.../abcdef..."
                 value={webhookUrl}
                 onChange={(e) => setWebhookUrl(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-amber-300 font-mono placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors break-all"
+                disabled={!isLeader}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-amber-300 font-mono placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors break-all disabled:opacity-60 disabled:cursor-not-allowed"
               />
               <span className="text-[11px] text-slate-500 mt-1 block">
                 Якщо залишити порожнім, система зберігатиме всі повідомлення у локальний Discord-симулятор.
@@ -233,17 +252,21 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
             <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
               <button
                 type="submit"
-                disabled={saving}
-                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
+                disabled={saving || !isLeader}
+                className={`w-full sm:flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition-colors shadow-sm ${
+                  isLeader
+                    ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 disabled:opacity-50'
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-60'
+                }`}
               >
-                {saving ? 'Збереження...' : 'Зберегти налаштування'}
+                {saving ? 'Збереження...' : isLeader ? 'Зберегти налаштування' : 'Тільки для Лідера (Заблоковано)'}
               </button>
 
               <button
                 type="button"
                 onClick={handleTestWebhook}
-                disabled={testing}
-                className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-700 disabled:opacity-50"
+                disabled={testing || !isLeader}
+                className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span>{testing ? 'Надсилання...' : 'Перевірити інтеграцію'}</span>

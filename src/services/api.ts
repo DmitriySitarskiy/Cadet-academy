@@ -25,6 +25,56 @@ export const api = {
     return res.json();
   },
 
+  async getDiscordAuthUrl(): Promise<{ url: string; redirectUri: string }> {
+    const res = await fetch('/api/auth/discord/url');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Помилка отримання Discord OAuth URL');
+    return data;
+  },
+
+  async directDiscordLogin(payload: {
+    discordId: string;
+    discordUsername?: string;
+    role?: 'leader' | 'instructor';
+    name?: string;
+    staticId?: string;
+  }): Promise<{ success: boolean; user: User }> {
+    const res = await fetch('/api/auth/discord/direct-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Помилка авторизації Discord');
+    return data;
+  },
+
+  async logout(): Promise<{ success: boolean; user: User }> {
+    const res = await fetch('/api/auth/logout', { method: 'POST' });
+    if (!res.ok) throw new Error('Помилка виходу');
+    return res.json();
+  },
+
+  async updateRoleSettings(payload: {
+    roleTitles?: { leader?: string; instructor?: string; cadet?: string };
+    discordGuildId?: string;
+    discordLeaderRoleId?: string;
+    discordInstructorRoleId?: string;
+    discordClientId?: string;
+    discordClientSecret?: string;
+    confirmationCode: string;
+    reason?: string;
+  }): Promise<{ success: boolean; settings: AppSettings; message?: string }> {
+    const res = await fetch('/api/settings/roles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Помилка збереження структури ролей');
+    return data;
+  },
+
   // Settings
   async getSettings(): Promise<AppSettings> {
     const res = await fetch('/api/settings');

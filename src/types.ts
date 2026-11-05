@@ -1,11 +1,28 @@
 export type UserRole = 'leader' | 'instructor' | 'cadet';
 
+export interface RoleAuditLogEntry {
+  id: string;
+  timestamp: string;
+  actorName: string;
+  actorDiscordId?: string;
+  targetRole: UserRole;
+  oldTitle: string;
+  newTitle: string;
+  oldDiscordRoleId: string;
+  newDiscordRoleId: string;
+  reason?: string;
+}
+
 export interface User {
   id: string;
   name: string;
   role: UserRole;
   staticId?: string;
   discordId?: string;
+  discordUsername?: string;
+  discordAvatar?: string;
+  authMethod?: 'discord_oauth' | 'manual' | 'discord_id';
+  customRoleTitle?: string;
 }
 
 export type QuestionType = 'single' | 'multiple' | 'open';
@@ -119,6 +136,22 @@ export interface AppSettings {
   discordForumThreadNameFormat: string;
   discordRoleMentionId: string;
   antiCheatStrictness: 'high' | 'medium' | 'low';
+
+  // Discord Guild & Role mapping for authorization
+  discordGuildId?: string;
+  discordLeaderRoleId?: string;
+  discordInstructorRoleId?: string;
+  discordClientId?: string;
+  discordClientSecret?: string;
+  leaderSecurityPin?: string;
+
+  // Custom Role Titles & Configurations
+  roleTitles: {
+    leader: string;
+    instructor: string;
+    cadet: string;
+  };
+  roleAuditLogs?: RoleAuditLogEntry[];
 }
 
 export interface DiscordLogEntry {

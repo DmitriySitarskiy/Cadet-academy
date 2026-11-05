@@ -1,5 +1,17 @@
 import React, { useState } from 'react';
-import { Shield, Users, FileText, Send, Radio, History, ChevronDown, Check } from 'lucide-react';
+import {
+  Shield,
+  Users,
+  FileText,
+  Send,
+  Radio,
+  History,
+  ChevronDown,
+  Check,
+  Key,
+  Lock,
+  LogIn,
+} from 'lucide-react';
 import { User, AppSettings } from '../types';
 
 interface HeaderProps {
@@ -10,6 +22,7 @@ interface HeaderProps {
   onSwitchUser: (userId: string) => void;
   settings: AppSettings | null;
   onOpenInstructorsModal: () => void;
+  onOpenDiscordAuth: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,8 +33,13 @@ export const Header: React.FC<HeaderProps> = ({
   onSwitchUser,
   settings,
   onOpenInstructorsModal,
+  onOpenDiscordAuth,
 }) => {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const isLeader = currentUser?.role === 'leader';
+  const roleTitle = currentUser?.role === 'leader'
+    ? (settings?.roleTitles?.leader || 'Шеф / Лідер')
+    : (settings?.roleTitles?.instructor || 'Інструктор Академії');
 
   return (
     <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800">
@@ -43,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Zone 2: Navigation Links (Adaptive) */}
-          <nav className="hidden lg:flex items-center gap-1 xl:gap-3 text-xs xl:text-sm font-medium">
+          <nav className="hidden lg:flex items-center gap-1 xl:gap-2 text-xs xl:text-sm font-medium">
             <button
               onClick={() => onSelectTab('results')}
               className={`whitespace-nowrap transition-colors flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${
@@ -82,6 +100,18 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Radio className="w-3.5 h-3.5 shrink-0" />
               <span>Discord Webhook</span>
+              {!isLeader && <Lock className="w-3 h-3 text-amber-500/80 shrink-0" />}
+            </button>
+
+            {/* Roles & Security Center (Visible to Leader) */}
+            <button
+              onClick={() => onSelectTab('roles')}
+              className={`whitespace-nowrap transition-colors flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${
+                currentTab === 'roles' ? 'text-amber-400 bg-amber-400/10 font-semibold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Key className="w-3.5 h-3.5 shrink-0" />
+              <span>Ролі та Доступ</span>
             </button>
 
             <button
@@ -95,21 +125,32 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </nav>
 
-          {/* Zone 3: Active User Switcher & Primary Action */}
+          {/* Zone 3: Active User Switcher & Discord Auth Action */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Discord Auth Quick Button */}
+            <button
+              onClick={onOpenDiscordAuth}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/30 text-xs text-[#5865F2] hover:text-white transition-all font-medium"
+              title="Авторизація через Discord / Ролька"
+            >
+              <LogIn className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Discord Вхід</span>
+            </button>
+
+            {/* User Profile dropdown */}
             <div className="relative">
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-xs text-slate-200 transition-colors"
                 title="Перемкнути роль / акаунт"
               >
-                <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                <div className={`w-2 h-2 rounded-full shrink-0 ${isLeader ? 'bg-amber-400' : 'bg-emerald-400'}`} />
                 <div className="text-left min-w-0">
                   <div className="font-semibold text-white truncate max-w-[85px] sm:max-w-[130px]">
                     {currentUser?.name || 'Інструктор'}
                   </div>
-                  <div className="text-[9px] text-amber-400 uppercase tracking-wider font-mono truncate">
-                    {currentUser?.role === 'leader' ? 'Лідер' : 'Інструктор'}
+                  <div className="text-[9px] text-amber-400 uppercase tracking-wider font-mono truncate max-w-[110px]">
+                    {roleTitle}
                   </div>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />

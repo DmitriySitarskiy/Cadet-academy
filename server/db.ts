@@ -24,6 +24,30 @@ const defaultSettings: AppSettings = {
   discordForumThreadNameFormat: '📋 [ІСПИТ] {test} — {cadet} ({static})',
   discordRoleMentionId: '',
   antiCheatStrictness: 'high',
+  discordGuildId: '',
+  discordLeaderRoleId: '',
+  discordInstructorRoleId: '',
+  discordClientId: '',
+  discordClientSecret: '',
+  leaderSecurityPin: '7777',
+  roleTitles: {
+    leader: 'Шеф Департаменту / Лідер',
+    instructor: 'Інструктор Академії',
+    cadet: 'Кадет Академії',
+  },
+  roleAuditLogs: [
+    {
+      id: 'log_initial_role',
+      timestamp: new Date().toISOString(),
+      actorName: 'Система (Ініціалізація)',
+      targetRole: 'leader',
+      oldTitle: 'Лідер',
+      newTitle: 'Шеф Департаменту / Лідер',
+      oldDiscordRoleId: '—',
+      newDiscordRoleId: '—',
+      reason: 'Базова ініціалізація структури ролей фракції',
+    },
+  ],
 };
 
 const defaultUsers: User[] = [
@@ -542,8 +566,18 @@ function initDb(): DatabaseSchema {
     try {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
+      const mergedSettings = {
+        ...defaultSettings,
+        ...(parsed.settings || {}),
+        roleTitles: {
+          ...defaultSettings.roleTitles,
+          ...(parsed.settings?.roleTitles || {}),
+        },
+        roleAuditLogs: parsed.settings?.roleAuditLogs || defaultSettings.roleAuditLogs,
+      };
+
       return {
-        settings: { ...defaultSettings, ...(parsed.settings || {}) },
+        settings: mergedSettings,
         users: parsed.users || defaultUsers,
         tests: parsed.tests || defaultTests,
         tokens: parsed.tokens || defaultTokens,
