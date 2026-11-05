@@ -51,7 +51,16 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+      
+      // Дозволяємо поточний домен (Netlify), а також локальні хости
+      const isAllowedOrigin =
+        origin === window.location.origin ||
+        origin.endsWith('.netlify.app') ||
+        origin.endsWith('.run.app') ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1');
+
+      if (!isAllowedOrigin) {
         return;
       }
 
