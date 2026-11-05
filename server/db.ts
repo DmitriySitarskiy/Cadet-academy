@@ -9,7 +9,7 @@ const DB_FILE = path.resolve(DATA_DIR, 'db.json');
 const SUPABASE_URL = process.env.SUPABASE_URL
   ? process.env.SUPABASE_URL.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '')
   : '';
-const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
+const SUPABASE_KEY = (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY)?.trim() || '';
 
 export interface DatabaseSchema {
   settings: AppSettings;
@@ -43,27 +43,16 @@ const defaultSettings: AppSettings = {
 
 const defaultUsers: User[] = [
   {
-    id: 'usr_leader_1',
-    name: 'Шеф Департаменту (Лідер)',
+    id: 'usr_sheriff_root',
+    name: 'Шериф Департаменту',
     role: 'leader',
-    staticId: '#1001',
-    discordId: process.env.INITIAL_LEADER_DISCORD_ID || '',
-    authMethod: 'manual',
-  },
-  {
-    id: 'usr_inst_1',
-    name: 'Черговий Інструктор',
-    role: 'instructor',
-    staticId: '#1420',
+    staticId: '#0001',
     authMethod: 'manual',
   },
 ];
 
 async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.warn('[Supabase] Відсутній SUPABASE_URL або SUPABASE_ANON_KEY');
-    return null;
-  }
+  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data`, {
       headers: {
@@ -71,17 +60,14 @@ async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
         Authorization: `Bearer ${SUPABASE_KEY}`,
       },
     });
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error('[Supabase Fetch Error]:', res.status, errText);
-      return null;
-    }
-    const rows = (await res.json()) as any[];
-    if (rows.length > 0 && rows[0].data) {
-      return rows[0].data as DatabaseSchema;
+    if (res.ok) {
+      const rows = (await res.json()) as any[];
+      if (rows.length > 0 && rows[0].data) {
+        return rows[0].data as DatabaseSchema;
+      }
     }
   } catch (err) {
-    console.error('[Supabase Connection Failed]:', err);
+    console.warn('[Supabase Fetch Error]:', err);
   }
   return null;
 }
@@ -89,7 +75,6 @@ async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
 async function pushToSupabase(data: DatabaseSchema): Promise<void> {
   if (!SUPABASE_URL || !SUPABASE_KEY) return;
   try {
-    // ?on_conflict=id є критично необхідним для збереження повторних оновлень у Supabase
     const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?on_conflict=id`, {
       method: 'POST',
       headers: {
@@ -105,10 +90,7 @@ async function pushToSupabase(data: DatabaseSchema): Promise<void> {
       }),
     });
     if (!res.ok) {
-      const errText = await res.text();
-      console.error('[Supabase Save Error]:', res.status, errText);
-    } else {
-      console.log('[Supabase] Успішно збережено в хмару!');
+      console.error('[Supabase Save Error]:', res.status, await res.text());
     }
   } catch (err) {
     console.error('[Supabase Save Exception]:', err);

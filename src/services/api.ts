@@ -19,9 +19,7 @@ function getAuthHeaders(extra: Record<string, string> = {}): Record<string, stri
 export const api = {
   // Session & Auth
   async getSession(): Promise<{ user: User; settings: AppSettings; allUsers: User[] }> {
-    const res = await fetch('/api/session', {
-      headers: getAuthHeaders(),
-    });
+    const res = await fetch('/api/session', { headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Помилка завантаження сесії');
     return res.json();
   },
@@ -36,29 +34,21 @@ export const api = {
     return res.json();
   },
 
-  async getDiscordAuthUrl(): Promise<{ url: string; redirectUri: string }> {
-    const res = await fetch('/api/auth/discord/url', {
-      headers: getAuthHeaders(),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Помилка отримання Discord OAuth URL');
-    return data;
-  },
-
-  async directDiscordLogin(payload: {
-    discordId: string;
-    discordUsername?: string;
-    role?: 'leader' | 'instructor';
-    name?: string;
-    staticId?: string;
-  }): Promise<{ success: boolean; user: User }> {
-    const res = await fetch('/api/auth/discord/direct-login', {
+  async backupLogin(payload: { login: string; password: string }): Promise<{ success: boolean; user: User }> {
+    const res = await fetch('/api/auth/backup-login', {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Помилка авторизації Discord');
+    if (!res.ok) throw new Error(data.error || 'Помилка авторизації Шерифа');
+    return data;
+  },
+
+  async getDiscordAuthUrl(): Promise<{ url: string; redirectUri: string }> {
+    const res = await fetch('/api/auth/discord/url', { headers: getAuthHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Помилка отримання Discord OAuth URL');
     return data;
   },
 
@@ -71,16 +61,7 @@ export const api = {
     return res.json();
   },
 
-  async updateRoleSettings(payload: {
-    roleTitles?: { leader?: string; instructor?: string; cadet?: string };
-    discordGuildId?: string;
-    discordLeaderRoleId?: string;
-    discordInstructorRoleId?: string;
-    discordClientId?: string;
-    discordClientSecret?: string;
-    confirmationCode: string;
-    reason?: string;
-  }): Promise<{ success: boolean; settings: AppSettings; message?: string }> {
+  async updateRoleSettings(payload: any): Promise<{ success: boolean; settings: AppSettings; message?: string }> {
     const res = await fetch('/api/settings/roles', {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -90,12 +71,10 @@ export const api = {
     if (!res.ok) throw new Error(data.error || 'Помилка збереження структури ролей');
     return data;
   },
-  
+
   // Settings
   async getSettings(): Promise<AppSettings> {
-    const res = await fetch('/api/settings', {
-      headers: getAuthHeaders(),
-    });
+    const res = await fetch('/api/settings', { headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Помилка отримання налаштувань');
     return res.json();
   },
@@ -113,7 +92,7 @@ export const api = {
   async testDiscordWebhook(webhookUrl?: string): Promise<{ success: boolean; message?: string; error?: string }> {
     const res = await fetch('/api/discord/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ webhookUrl }),
     });
     const data = await res.json();
@@ -122,14 +101,14 @@ export const api = {
   },
 
   async getDiscordLogs(): Promise<DiscordLogEntry[]> {
-    const res = await fetch('/api/discord/logs');
+    const res = await fetch('/api/discord/logs', { headers: getAuthHeaders() });
     if (!res.ok) return [];
     return res.json();
   },
 
   // Tests
   async getTests(): Promise<TestConfig[]> {
-    const res = await fetch('/api/tests');
+    const res = await fetch('/api/tests', { headers: getAuthHeaders() });
     if (!res.ok) throw new Error('Помилка завантаження тестів');
     return res.json();
   },
@@ -139,7 +118,7 @@ export const api = {
     const url = test.id && !test.id.startsWith('new_') ? `/api/tests/${test.id}` : '/api/tests';
     const res = await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(test),
     });
     if (!res.ok) {
@@ -150,31 +129,24 @@ export const api = {
   },
 
   async deleteTest(testId: string): Promise<boolean> {
-    const res = await fetch(`/api/tests/${testId}`, { method: 'DELETE' });
+    const res = await fetch(`/api/tests/${testId}`, { method: 'DELETE', headers: getAuthHeaders() });
     return res.ok;
   },
 
   // Tokens / Link Generation
-  async generateExamLink(data: {
-    cadetNickname: string;
-    cadetStatic: string;
-    cadetDiscord?: string;
-    testId: string;
-  }): Promise<{ token: ExamToken; examLink: string; discordCopyTemplate: string }> {
+  async generateExamLink(data: any): Promise<{ token: ExamToken; examLink: string; discordCopyTemplate: string }> {
     const res = await fetch('/api/links/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     const result = await res.json();
-    if (!res.ok) {
-      throw new Error(result.error || 'Не вдалося створити посилання');
-    }
+    if (!res.ok) throw new Error(result.error || 'Не вдалося створити посилання');
     return result;
   },
 
   async getTokens(): Promise<ExamToken[]> {
-    const res = await fetch('/api/tokens');
+    const res = await fetch('/api/tokens', { headers: getAuthHeaders() });
     if (!res.ok) return [];
     return res.json();
   },
@@ -187,14 +159,7 @@ export const api = {
     return data;
   },
 
-  async submitExam(
-    token: string,
-    payload: {
-      answers: Array<{ questionId: string; selectedOption?: number; selectedOptions?: number[]; textAnswer?: string }>;
-      antiCheatEvents: any[];
-      timeSpentSeconds: number;
-    }
-  ): Promise<any> {
+  async submitExam(token: string, payload: any): Promise<any> {
     const res = await fetch(`/api/exam/${token}/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -205,66 +170,48 @@ export const api = {
     return data;
   },
 
-  // Results & Grading
-  async getResults(filters?: { status?: string; search?: string; testId?: string }): Promise<ExamResult[]> {
-    const params = new URLSearchParams();
-    if (filters?.status) params.set('status', filters.status);
-    if (filters?.search) params.set('search', filters.search);
-    if (filters?.testId) params.set('testId', filters.testId);
-
-    const res = await fetch(`/api/results?${params.toString()}`);
+  // Results
+  async getResults(filters?: any): Promise<ExamResult[]> {
+    const res = await fetch('/api/results', { headers: getAuthHeaders() });
     if (!res.ok) return [];
     return res.json();
   },
 
   async getResultDetail(id: string): Promise<any> {
-    const res = await fetch(`/api/results/${id}`);
+    const res = await fetch(`/api/results/${id}`, { headers: getAuthHeaders() });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Помилка завантаження результату');
     return data;
   },
 
-  async gradeOpenQuestions(
-    id: string,
-    grades: Array<{ questionId: string; manualScore: number; instructorComment?: string }>
-  ): Promise<any> {
+  async gradeOpenQuestions(id: string, grades: any[]): Promise<any> {
     const res = await fetch(`/api/results/${id}/grade-open`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ grades }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Помилка оцінювання');
-    return data;
+    return res.json();
   },
 
-  async submitDecision(
-    id: string,
-    decision: 'passed' | 'failed' | 'retake_allowed',
-    comment: string,
-    threadId?: string
-  ): Promise<any> {
+  async submitDecision(id: string, decision: string, comment: string, threadId?: string): Promise<any> {
     const res = await fetch(`/api/results/${id}/decision`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ decision, comment, threadId }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Помилка винесення вердикту');
-    return data;
+    return res.json();
   },
 
-  // Instructors
   async getInstructors(): Promise<User[]> {
-    const res = await fetch('/api/instructors');
+    const res = await fetch('/api/instructors', { headers: getAuthHeaders() });
     if (!res.ok) return [];
     return res.json();
   },
 
-  async addInstructor(data: { name: string; role: string; staticId?: string; discordId?: string }): Promise<User> {
+  async addInstructor(data: any): Promise<User> {
     const res = await fetch('/api/instructors', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     const resData = await res.json();
@@ -273,13 +220,13 @@ export const api = {
   },
 
   async deleteInstructor(id: string): Promise<boolean> {
-    const res = await fetch(`/api/instructors/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/instructors/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
     return res.ok;
   },
 
   async searchCadetHistory(query: string): Promise<ExamResult[]> {
     if (!query) return [];
-    const res = await fetch(`/api/cadets/history?query=${encodeURIComponent(query)}`);
+    const res = await fetch(`/api/cadets/history?query=${encodeURIComponent(query)}`, { headers: getAuthHeaders() });
     if (!res.ok) return [];
     return res.json();
   },
