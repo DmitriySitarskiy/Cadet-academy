@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { getDb, saveDb } from './server/db.js';
@@ -9,8 +8,7 @@ import { ExamToken, ExamResult, AnswerSubmission, AntiCheatEvent, User, UserRole
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = process.cwd();
 
 export const app = express();
 const PORT = Number(process.env.PORT) || 3000;
