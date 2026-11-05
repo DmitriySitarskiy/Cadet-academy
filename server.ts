@@ -10,6 +10,74 @@ dotenv.config();
 
 const __dirname = process.cwd();
 
+// ==================== ТЕСТ ПІДКЛЮЧЕННЯ ДО SUPABASE ====================
+app.get('/api/test-db', async (req, res) => {
+  const url = process.env.SUPABASE_URL?.trim();
+  const key = (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY)?.trim();
+
+  const diagnostics: any = {
+    hasUrl: Boolean(url),
+    urlFormatValid: url ? url.startsWith('https://') : false,
+    urlPreview: url ? url.slice(0, 25) + '...' : 'ВІДСУТНІЙ',
+    hasKey: Boolean(key),
+    keyLength: key ? key.length : 0,
+  };
+
+  if (!url || !key) {
+    return res.status(500).json({
+      success: false,
+      message: '❌ Змінні SUPABASE_URL або SUPABASE_ANON_KEY не знайдені в Netlify!',
+      diagnostics,
+    });
+  }
+
+  // 1. Тест читання з таблиці app_state
+  try {
+    const fetchRes = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/app_state?select=*`, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+    });
+
+    diagnostics.readStatus = fetchRes.status;
+    diagnostics.readText = await fetchRes.text();
+  } catch (err: any) {
+    diagnostics.readError = err.message || String(err);
+  }
+
+  // 2. Тест запису в таблицю app_state
+  try {
+    const writeRes = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/app_state?on_conflict=id`, {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=representation',
+      },
+      body: JSON.stringify({
+        id: 'main',
+        data: { testConnection: true, time: new Date().toISOString() },
+        updated_at: new Date().toISOString(),
+      }),
+    });
+
+    diagnostics.writeStatus = writeRes.status;
+    diagnostics.writeText = await writeRes.text();
+  } catch (err: any) {
+    diagnostics.writeError = err.message || String(err);
+  }
+
+  const isSuccess = diagnostics.readStatus === 200 && (diagnostics.writeStatus === 200 || diagnostics.writeStatus === 201);
+
+  res.json({
+    success: isSuccess,
+    verdict: isSuccess ? '✅ База даних Supabase підключена і працює!' : '❌ Помилка зв’язку з Supabase',
+    diagnostics,
+  });
+});
+
 export const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
