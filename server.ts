@@ -599,14 +599,8 @@ app.post('/api/exam/:token/submit', async (req, res) => {
         isCorrect = true;
         score = q.maxPoints;
         autoScore += score;
-      } else {
-        // Частковий бал якщо немає неправильних варіантів
-        const incorrectCount = mappedOriginals.filter((i) => !actualCorrect.includes(i)).length;
-        if (incorrectCount === 0 && mappedOriginals.length > 0 && actualCorrect.length > 0) {
-          score = Math.floor((mappedOriginals.length / actualCorrect.length) * q.maxPoints);
-          autoScore += score;
-        }
       }
+      // Якщо обрано не всі — залишається 0 балів!
 
       evaluatedAnswers.push({
         questionId: q.id,
@@ -617,6 +611,7 @@ app.post('/api/exam/:token/submit', async (req, res) => {
         isCorrect,
       });
     }
+      
     // 3. Відкритий кейс
     else if (q.type === 'open') {
       hasOpen = true;

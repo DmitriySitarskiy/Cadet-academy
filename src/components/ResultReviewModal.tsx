@@ -307,20 +307,19 @@ export const ResultReviewModal: React.FC<ResultReviewModalProps> = ({
                   return (
                     <div
                       key={ans.questionId}
-                      className={`p-4 rounded-xl border text-xs space-y-3 transition-colors ${
-                        isCorrect
+                      className={`p-4 rounded-xl border text-xs space-y-3 transition-colors ${isCorrect
                           ? 'bg-slate-950/60 border-emerald-500/30'
                           : 'bg-slate-950/60 border-red-500/30'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="font-semibold text-white text-sm">
                           {idx + 1}. {ans.title}
                         </div>
                         <div className="shrink-0">
-                          {isCorrect ? (
+                          {ans.autoScore > 0 ? (
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              +{ans.autoScore} б. (Правильно)
+                              +{ans.autoScore} б. {isCorrect ? '(Правильно)' : '(Частково)'}
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">
@@ -500,11 +499,10 @@ export const ResultReviewModal: React.FC<ResultReviewModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setDecision('passed')}
-                  className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                    decision === 'passed'
+                  className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${decision === 'passed'
                       ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-sm'
                       : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
+                    }`}
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   Зараховано
@@ -513,11 +511,10 @@ export const ResultReviewModal: React.FC<ResultReviewModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setDecision('failed')}
-                  className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                    decision === 'failed'
+                  className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${decision === 'failed'
                       ? 'bg-red-500/20 border-red-500 text-red-300 shadow-sm'
                       : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
+                    }`}
                 >
                   <XCircle className="w-4 h-4" />
                   Не зараховано
@@ -526,11 +523,10 @@ export const ResultReviewModal: React.FC<ResultReviewModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setDecision('retake_allowed')}
-                  className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                    decision === 'retake_allowed'
+                  className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${decision === 'retake_allowed'
                       ? 'bg-purple-500/20 border-purple-500 text-purple-300 shadow-sm'
                       : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
+                    }`}
                 >
                   <RotateCcw className="w-4 h-4" />
                   Дозволити перездачу
