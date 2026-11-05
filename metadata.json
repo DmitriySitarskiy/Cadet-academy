@@ -1,0 +1,6 @@
+{
+  "name": "Академія Кадетів — Система Онлайн-Тестування",
+  "description": "Автоматизована платформа тестування кадетів з антисписуванням, одноразовими посиланнями, оцінюванням інструкторів та інтеграцією Discord Webhooks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
