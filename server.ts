@@ -624,9 +624,47 @@ app.get('/api/results', (req, res) => {
 app.get('/api/results/:id', (req, res) => {
   const db = getDb();
   const result = db.results.find((r) => r.id === req.params.id);
-  if (!result) return res.status(404).json({ error: 'Не знайдено' });
+  if (!result) return res.status(404).json({ error: 'Результат не знайдено' });
+
   const test = db.tests.find((t) => t.id === result.testId);
-  res.json({ ...result, test, answers: result.answers });
+  const token = db.tokens.find((t) => t.token === result.token);
+
+  // Підтягуємо текст питань, варіанти та що саме обрав кадет
+  const detailedAnswers = (result.answers || []).map((ans: any) => {
+    const question = test?.questions?.find((q: any) => q.id === ans.questionId);
+    const shuffle = token?.optionsShuffle?.[ans.questionId];
+
+    // Якщо варіанти перемішувалися для кадета — зіставляємо їх з оригіналом
+    let finalSelectedOption = ans.selectedOption;
+    if (shuffle && ans.selectedOption !== undefined && shuffle[ans.selectedOption] !== undefined) {
+      finalSelectedOption = shuffle[ans.selectedOption];
+    }
+
+    let finalSelectedOptions = ans.selectedOptions;
+    if (shuffle && Array.isArray(ans.selectedOptions)) {
+      finalSelectedOptions = ans.selectedOptions.map((dispIdx: number) => shuffle[dispIdx] ?? dispIdx);
+    }
+
+    return {
+      ...ans,
+      selectedOption: finalSelectedOption,
+      selectedOptions: finalSelectedOptions,
+      title: question?.title || 'Питання (без назви)',
+      description: question?.description || '',
+      category: question?.category || '',
+      explanation: question?.explanation || '',
+      options: question?.options || [],
+      correctOption: question?.correctOption,
+      correctOptions: question?.correctOptions || [],
+    };
+  });
+
+  res.json({
+    ...result,
+    test,
+    tokenRecord: token,
+    answers: detailedAnswers,
+  });
 });
 
 app.post('/api/results/:id/decision', async (req, res) => {
