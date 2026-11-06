@@ -28,8 +28,8 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
   currentUser,
   onRefreshTests,
 }) => {
-  const isLeader = currentUser?.role === 'leader';
-
+  const canManageTests = currentUser?.role === 'leader' || currentUser?.role === 'instructor';
+  
   const [editingTest, setEditingTest] = useState<Partial<TestConfig> | null>(null);
   const [selectedTestForBank, setSelectedTestForBank] = useState<TestConfig | null>(null);
 
@@ -176,13 +176,11 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
             Банк іспитів, регламенти та питання
           </h1>
           <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            {isLeader
-              ? 'Ви маєте повні права лідера фракції: створення і редагування тестів, налаштування лімітів часу, прохідних балів та випадкової вибірки з банку.'
-              : 'Режим перегляду інструктора. Для редагування структури тестів перемкніться на акаунт лідера у верхньому правому кутку.'}
+            Викладацький режим: створення іспитів, наповнення банку запитань, налаштування часу та критеріїв оцінювання.
           </p>
         </div>
 
-        {isLeader && (
+        {canManageTests && (
           <button
             onClick={handleCreateTest}
             className="py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors shrink-0 shadow-sm shadow-amber-500/20"
@@ -207,7 +205,7 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                 </span>
 
                 <div className="flex items-center gap-1">
-                  {isLeader && (
+                  {canManageTests && (
                     <>
                       <button
                         onClick={() => setEditingTest(test)}
@@ -288,7 +286,7 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              {isLeader && (
+              {canManageTests && (
                 <button
                   onClick={() => handleOpenAddQuestion(selectedTestForBank)}
                   className="py-2 px-3.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
@@ -340,7 +338,7 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                         {q.maxPoints} б.
                       </span>
 
-                      {isLeader && (
+                      {canManageTests && (
                         <div className="flex items-center gap-1 ml-2">
                           <button
                             onClick={() => handleEditQuestion(selectedTestForBank, q)}

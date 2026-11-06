@@ -24,29 +24,6 @@ export const api = {
     return res.json();
   },
 
-  
-  async backupLogin(payload: { login: string; password: string }): Promise<{ success: boolean; user: User }> {
-    const res = await fetch('/api/auth/backup-login', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Помилка авторизації Куратора');
-    return data;
-  },
-
-  async changeCuratorPassword(payload: { currentPassword: string; newPassword: string }): Promise<{ success: boolean; message: string }> {
-    const res = await fetch('/api/settings/change-password', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Помилка зміни пароля');
-    return data;
-  },
-
   async switchUser(userId: string): Promise<{ success: boolean; user: User }> {
     const res = await fetch('/api/session/switch', {
       method: 'POST',

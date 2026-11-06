@@ -14,6 +14,7 @@ interface DiscordAuthModalProps {
   currentUser: User | null;
   settings: AppSettings | null;
   onUserChanged: (user: User) => void;
+  onAuthError?: (error: string) => void;
 }
 
 export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
@@ -22,6 +23,7 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
   currentUser,
   settings,
   onUserChanged,
+  onAuthError,
 }) => {
   const [activeTab, setActiveTab] = useState<'oauth' | 'backup'>('oauth');
 
@@ -53,6 +55,11 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
           onUserChanged(authedUser);
           onClose();
         }
+      } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
+        if (onAuthError) {
+          onAuthError(event.data.error || 'У вас немає ролі Інструктора або Шерифа на сервері фракції.');
+        }
+        onClose();
       }
     };
 

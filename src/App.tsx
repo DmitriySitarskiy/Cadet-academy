@@ -28,6 +28,8 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<string>('results');
   const [loading, setLoading] = useState<boolean>(true);
 
+  const [globalAuthError, setGlobalAuthError] = useState<string | null>(null);
+
   // Active Modals & Views
   const [cadetExamToken, setCadetExamToken] = useState<string | null>(null);
   const [reviewResultId, setReviewResultId] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
-  const loadAllData = async () => {
+ const loadAllData = async () => {
     try {
       setLoading(true);
       const [sessionData, testsData, resultsData] = await Promise.all([
@@ -78,13 +80,22 @@ export default function App() {
         api.getResults(),
       ]);
 
-      setCurrentUser(sessionData.user);
-      setAllUsers(sessionData.allUsers);
-      setSettings(sessionData.settings);
-      setTests(testsData);
-      setResults(resultsData);
+      if (sessionData && sessionData.user) {
+        setCurrentUser(sessionData.user);
+      } else {
+        // Якщо сервер не підтвердив користувача — примусово очищаємо локальний кеш
+        setCurrentUser(null);
+        localStorage.removeItem('cadet_current_user_id');
+      }
+
+      setAllUsers(sessionData.allUsers || []);
+      setSettings(sessionData.settings || null);
+      setTests(testsData || []);
+      setResults(resultsData || []);
     } catch (e) {
       console.error('Error loading initial data', e);
+      setCurrentUser(null);
+      localStorage.removeItem('cadet_current_user_id');
     } finally {
       setLoading(false);
     }
@@ -157,6 +168,18 @@ export default function App() {
               {settings?.factionTag || 'Службовий портал викладацького корпусу'}
             </p>
           </div>
+
+          {globalAuthError && (
+            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs text-left flex items-start gap-3 animate-in fade-in">
+              <span className="text-base leading-none shrink-0">⛔</span>
+              <div>
+                <div className="font-bold text-red-200">Доступ заборонено</div>
+                <div className="text-[11px] text-red-300/90 mt-0.5 leading-relaxed">
+                  {globalAuthError}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="p-4 rounded-xl bg-slate-950 border border-slate-800/80 text-xs text-slate-400 text-left space-y-2">
             <div className="font-semibold text-amber-300 flex items-center gap-1.5">
@@ -351,6 +374,7 @@ export default function App() {
         currentUser={currentUser}
         settings={settings}
         onUserChanged={(u) => {
+          setGlobalAuthError(null);
           localStorage.setItem('cadet_current_user_id', u.id);
           setCurrentUser(u);
           loadAllData();

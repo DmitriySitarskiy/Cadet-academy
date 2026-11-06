@@ -1,33 +1,34 @@
 {
   "settings": {
-    "academyName": "Поліцейська Академія — Патрульна Поліція",
-    "factionTag": "НПУ / СБУ / Шериф",
-    "discordWebhookUrl": "",
+    "academyName": "Sheriff Academy",
+    "factionTag": "BCSD",
+    "discordWebhookUrl": "https://discord.com/api/webhooks/1567956360090619980/msVLWS6QPslFb_I0NgBKW3f_OucRvxk-MGK06QRlfctErKr-CaAJsvaG6Y5Sqv41LlMe",
     "discordForumThreadNameFormat": "📋 [ІСПИТ] {test} — {cadet} ({static})",
     "discordRoleMentionId": "",
-    "antiCheatStrictness": "high"
+    "antiCheatStrictness": "high",
+    "discordGuildId": "1567955962327867473",
+    "discordLeaderRoleId": "1567973681836331168",
+    "discordInstructorRoleId": "1567974006491975862",
+    "discordClientId": "1567975234575798402",
+    "discordClientSecret": "Uvlfqy22hltoKY69LJwWp0xLgO9nsnzW",
+    "leaderSecurityPin": "7777",
+    "roleTitles": {
+      "leader": "Шеф Департаменту / Лідер",
+      "instructor": "Інструктор Академії",
+      "cadet": "Кадет Академії"
+    },
+    "roleAuditLogs": []
   },
   "users": [
     {
-      "id": "usr_leader_1",
-      "name": "Олександр Коваль",
-      "role": "leader",
-      "staticId": "#1001",
-      "discordId": "koval_leader"
-    },
-    {
-      "id": "usr_inst_1",
-      "name": "Дмитро Марченко",
+      "id": "usr_1793952689496_yhoi",
+      "name": "D.Sheriff | Owl Kweepad | 161600",
       "role": "instructor",
-      "staticId": "#1420",
-      "discordId": "marchenko_inst"
-    },
-    {
-      "id": "usr_inst_2",
-      "name": "Сергій Ткаченко",
-      "role": "instructor",
-      "staticId": "#2891",
-      "discordId": "tkachenko_inst"
+      "staticId": "#2983",
+      "discordId": "340039442406572034",
+      "discordUsername": ".owl_extype",
+      "discordAvatar": "https://cdn.discordapp.com/avatars/340039442406572034/0c5c4f6b5c056fb479b17b11071588a5.png",
+      "authMethod": "discord_oauth"
     }
   ],
   "tests": [
@@ -344,6 +345,61 @@
   ],
   "tokens": [
     {
+      "id": "tok_1793954339905",
+      "token": "exam-5ec19cfcec302409",
+      "testId": "test_law_proc",
+      "testTitle": "Теорія: Законодавство та Процесуальний кодекс",
+      "cadetNickname": "Owl Kweepad",
+      "cadetStatic": "161600",
+      "cadetDiscord": "340039442406572034",
+      "instructorId": "usr_1793952689496_yhoi",
+      "instructorName": "delight",
+      "createdAt": "2026-11-06T08:38:59.905Z",
+      "expiresAt": "2026-11-07T08:38:59.905Z",
+      "status": "submitted",
+      "selectedQuestionIds": [
+        "q_law_2",
+        "q_law_8",
+        "q_law_7",
+        "q_law_3",
+        "q_law_5",
+        "q_law_6"
+      ],
+      "optionsShuffle": {
+        "q_law_2": [
+          3,
+          0,
+          2,
+          1
+        ],
+        "q_law_8": [
+          2,
+          1,
+          3,
+          0
+        ],
+        "q_law_7": [
+          1,
+          0,
+          3,
+          2
+        ],
+        "q_law_3": [
+          2,
+          0,
+          1,
+          3
+        ],
+        "q_law_5": [
+          2,
+          0,
+          1,
+          3
+        ]
+      },
+      "startedAt": "2026-11-06T08:39:11.043Z"
+    },
+    {
       "id": "tok_1793899696463",
       "token": "exam-ccede9aa707b9fe4",
       "testId": "test_law_proc",
@@ -447,6 +503,95 @@
     }
   ],
   "results": [
+    {
+      "id": "res_1793954416171_os1j",
+      "token": "exam-5ec19cfcec302409",
+      "testId": "test_law_proc",
+      "testTitle": "Теорія: Законодавство та Процесуальний кодекс",
+      "cadetNickname": "Owl Kweepad",
+      "cadetStatic": "161600",
+      "cadetDiscord": "340039442406572034",
+      "instructorId": "usr_1793952689496_yhoi",
+      "instructorName": "delight",
+      "startedAt": "2026-11-06T08:39:11.043Z",
+      "submittedAt": "2026-11-06T08:40:16.171Z",
+      "timeSpentSeconds": 63,
+      "autoScore": 2,
+      "maxAutoScore": 7,
+      "manualScore": 0,
+      "maxManualScore": 3,
+      "totalScore": 2,
+      "maxTotalScore": 10,
+      "percentage": 20,
+      "autoPassed": false,
+      "hasOpenQuestions": true,
+      "status": "failed",
+      "answers": [
+        {
+          "questionId": "q_law_2",
+          "type": "single",
+          "selectedOption": 3,
+          "autoScore": 0,
+          "maxPoints": 1,
+          "isCorrect": false
+        },
+        {
+          "questionId": "q_law_8",
+          "type": "multiple",
+          "selectedOptions": [
+            1,
+            3
+          ],
+          "autoScore": 0,
+          "maxPoints": 2,
+          "isCorrect": false
+        },
+        {
+          "questionId": "q_law_7",
+          "type": "single",
+          "selectedOption": 1,
+          "autoScore": 1,
+          "maxPoints": 1,
+          "isCorrect": true
+        },
+        {
+          "questionId": "q_law_3",
+          "type": "multiple",
+          "selectedOptions": [
+            2,
+            1
+          ],
+          "autoScore": 0,
+          "maxPoints": 2,
+          "isCorrect": false
+        },
+        {
+          "questionId": "q_law_5",
+          "type": "single",
+          "selectedOption": 1,
+          "autoScore": 1,
+          "maxPoints": 1,
+          "isCorrect": true
+        },
+        {
+          "questionId": "q_law_6",
+          "type": "open",
+          "textAnswer": "",
+          "manualScore": 0,
+          "maxPoints": 3
+        }
+      ],
+      "antiCheatEvents": [],
+      "discordPosted": true,
+      "discordThreadId": "1568183232267296862",
+      "instructorDecision": {
+        "instructorId": "usr_1793952689496_yhoi",
+        "instructorName": "delight",
+        "decision": "failed",
+        "comment": "",
+        "decidedAt": "2026-11-06T08:41:40.287Z"
+      }
+    },
     {
       "id": "res_sample_1",
       "token": "cadet-finished-01",
@@ -614,5 +759,153 @@
       "discordPosted": true
     }
   ],
-  "discordLogs": []
+  "discordLogs": [
+    {
+      "id": "log_dec_1793954500289_v9rv1",
+      "timestamp": "2026-11-06T08:41:40.289Z",
+      "cadetNickname": "Owl Kweepad",
+      "testTitle": "Теорія: Законодавство та Процесуальний кодекс",
+      "status": "Рішення: НЕ ЗАРАХОВАНО",
+      "payload": {
+        "username": "Sheriff Academy | Штаб Академії",
+        "avatar_url": "https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=128&q=80",
+        "content": "📢 <@340039442406572034>, інструктор оновив статус вашого іспиту!",
+        "embeds": [
+          {
+            "title": "🔴 ВЕРДИКТ ІНСТРУКТОРА: НЕ ЗАРАХОВАНО",
+            "description": "Іспит: **Теорія: Законодавство та Процесуальний кодекс**\nКадет: **Owl Kweepad** (161600)",
+            "color": 15680580,
+            "fields": [
+              {
+                "name": "👨‍🏫 Інструктор",
+                "value": "delight",
+                "inline": true
+              },
+              {
+                "name": "🎯 Підсумковий результат",
+                "value": "**2 / 10** б. (20%)",
+                "inline": true
+              },
+              {
+                "name": "💬 Коментар інструктора",
+                "value": "— Без додаткового коментаря —",
+                "inline": false
+              }
+            ],
+            "footer": {
+              "text": "Академія Кадетів • Дата рішення: 06.11.2026 09:41:40"
+            },
+            "timestamp": "2026-11-06T08:41:40.289Z"
+          }
+        ]
+      },
+      "success": true,
+      "response": "Вердикт успішно надіслано в Discord!"
+    },
+    {
+      "id": "log_dec_1793954458428_n2h6u",
+      "timestamp": "2026-11-06T08:40:58.428Z",
+      "cadetNickname": "Owl Kweepad",
+      "testTitle": "Теорія: Законодавство та Процесуальний кодекс",
+      "status": "Рішення: НЕ ЗАРАХОВАНО",
+      "payload": {
+        "username": "Sheriff Academy | Штаб Академії",
+        "avatar_url": "https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=128&q=80",
+        "content": "📢 <@340039442406572034>, інструктор оновив статус вашого іспиту!",
+        "embeds": [
+          {
+            "title": "🔴 ВЕРДИКТ ІНСТРУКТОРА: НЕ ЗАРАХОВАНО",
+            "description": "Іспит: **Теорія: Законодавство та Процесуальний кодекс**\nКадет: **Owl Kweepad** (161600)",
+            "color": 15680580,
+            "fields": [
+              {
+                "name": "👨‍🏫 Інструктор",
+                "value": "delight",
+                "inline": true
+              },
+              {
+                "name": "🎯 Підсумковий результат",
+                "value": "**2 / 10** б. (20%)",
+                "inline": true
+              },
+              {
+                "name": "💬 Коментар інструктора",
+                "value": "— Без додаткового коментаря —",
+                "inline": false
+              }
+            ],
+            "footer": {
+              "text": "Академія Кадетів • Дата рішення: 06.11.2026 09:40:58"
+            },
+            "timestamp": "2026-11-06T08:40:58.428Z"
+          }
+        ]
+      },
+      "success": true,
+      "response": "Вердикт успішно надіслано в Discord!"
+    },
+    {
+      "id": "log_1793954416174_p1inz",
+      "timestamp": "2026-11-06T08:40:16.174Z",
+      "cadetNickname": "Owl Kweepad",
+      "testTitle": "Теорія: Законодавство та Процесуальний кодекс",
+      "status": "Здано на перевірку",
+      "payload": {
+        "username": "Sheriff Academy | Екзаменатор",
+        "avatar_url": "https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=128&q=80",
+        "content": "<@340039442406572034> завершив складання іспиту!",
+        "thread_name": "📋 [ІСПИТ] Теорія: Законодавство та Процесуальний кодекс — Owl Kweepad (161600)",
+        "embeds": [
+          {
+            "title": "📋 Звіт з іспиту: Теорія: Законодавство та Процесуальний кодекс",
+            "description": "Кадет **Owl Kweepad** (161600) здав роботу на розгляд інструкторського корпусу.",
+            "color": 3900150,
+            "fields": [
+              {
+                "name": "👤 Кадет та Discord ID",
+                "value": "**Owl Kweepad** (161600)\nDiscord: <@340039442406572034> `(340039442406572034)`",
+                "inline": true
+              },
+              {
+                "name": "⏱️ Час проходження",
+                "value": "1 хв 3 сек",
+                "inline": true
+              },
+              {
+                "name": "🎯 Бали (автоперевірка)",
+                "value": "**2 / 7** балів (20%)",
+                "inline": true
+              },
+              {
+                "name": "📊 Розшифровка тестів",
+                "value": "❌ П1: Помилка (0/1 б.)  |  ❌ П2: Помилка (0/2 б.)  |  ✅ П3: Правильно (1/1 б.)  |  ❌ П4: Помилка (0/2 б.)  |  ✅ П5: Правильно (1/1 б.)",
+                "inline": false
+              },
+              {
+                "name": "📝 Ситуаційні кейси (відкриті відповіді)",
+                "value": "**Кейс #1:** — Відповідь порожня —",
+                "inline": false
+              },
+              {
+                "name": "🛡️ Протокол антисписування",
+                "value": "✅ Чисто (порушень не зафіксовано)",
+                "inline": false
+              },
+              {
+                "name": "🔗 Інспекція та вердикт інструктора",
+                "value": "[➡️ Відкрити результат та винести вердикт](http://localhost:3000/#result-res_1793954416171_os1j)",
+                "inline": false
+              }
+            ],
+            "footer": {
+              "text": "Академія Кадетів • Видав посилання: delight"
+            },
+            "timestamp": "2026-11-06T08:40:16.174Z"
+          }
+        ]
+      },
+      "success": true,
+      "response": "Успішно надіслано в Discord! ID гілки: 1568183232267296862"
+    }
+  ]
 }

@@ -27,25 +27,34 @@ app.use(async (req, res, next) => {
 
 let currentUserId = 'usr_sheriff_root';
 
-function getCurrentUser(req?: express.Request): User {
+function getCurrentUser(req?: express.Request): User | null {
   const db = getDb();
   const reqUserId = (req?.headers?.['x-user-id'] as string) || (req?.query?.userId as string);
   if (reqUserId) {
     const found = db.users.find((u) => u.id === reqUserId || u.discordId === reqUserId);
     if (found) return found;
   }
-  return db.users.find((u) => u.id === currentUserId) || db.users[0];
+  return null;
 }
 
-// Редагування доступне ТІЛЬКИ Шерифу
 function requireLeader(req: express.Request, res: express.Response, next: express.NextFunction) {
   const user = getCurrentUser(req);
-  if (!user || user.role !== 'leader') {
-    return res.status(403).json({
-      error: 'Доступ обмежено: Тільки Шериф / Лідер має право керувати вебхуком, змінювати ролі та конфігурацію системи.',
-    });
+  if (user && user.role === 'leader') {
+    return next();
   }
-  next();
+  return res.status(403).json({
+    error: 'Доступ обмежено: Тільки Шериф / Лідер має право керувати вебхуком, змінювати ролі та конфігурацію системи.',
+  });
+}
+
+function requireStaff(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const user = getCurrentUser(req);
+  if (user && (user.role === 'leader' || user.role === 'instructor')) {
+    return next();
+  }
+  return res.status(403).json({
+    error: 'Доступ обмежено: Дія дозволена лише Інструкторам та Шерифу.',
+  });
 }
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -229,74 +238,72 @@ app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
 
     let assignedRole: UserRole | null = null;
     let guildRoles: string[] = [];
+    let diagnosticInfo = '';
 
-    if (db.settings.discordGuildId) {
-      const memberRes = await fetch(
-        `https://discord.com/api/users/@me/guilds/${db.settings.discordGuildId}/member`,
-        { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
-      );
+    const guildId = (db.settings.discordGuildId || '').trim();
+    const leaderRoleId = (db.settings.discordLeaderRoleId || '').trim();
+    const instructorRoleId = (db.settings.discordInstructorRoleId || '').trim();
+    let guildNickname: string | null = null;
 
-      if (memberRes.ok) {
-        const memberData = await memberRes.json();
-        guildRoles = memberData.roles || [];
-        if (db.settings.discordLeaderRoleId && guildRoles.includes(db.settings.discordLeaderRoleId)) {
-          assignedRole = 'leader';
-        } else if (db.settings.discordInstructorRoleId && guildRoles.includes(db.settings.discordInstructorRoleId)) {
-          assignedRole = 'instructor';
+    if (guildId) {
+      try {
+        const memberRes = await fetch(
+          `https://discord.com/api/users/@me/guilds/${guildId}/member`,
+          { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
+        );
+
+        if (memberRes.ok) {
+          const memberData = await memberRes.json();
+          guildRoles = Array.isArray(memberData.roles) ? memberData.roles : [];
+          guildNickname = memberData.nick || null;
+
+          if (leaderRoleId && guildRoles.includes(leaderRoleId)) {
+            assignedRole = 'leader';
+          } else if (instructorRoleId && guildRoles.includes(instructorRoleId)) {
+            assignedRole = 'instructor';
+          } else {
+            diagnosticInfo = `Ваші ролі в Discord: [${guildRoles.join(', ') || 'немає'}]. Вони не збіглися з ID Шерифа (${leaderRoleId || 'не вказано'}) або Інструктора (${instructorRoleId || 'не вказано'}).`;
+          }
+        } else {
+          diagnosticInfo = `Discord API статус ${memberRes.status}. Переконайтеся, що ваш Discord-бот доданий на сервер фракції!`;
         }
+      } catch (err: any) {
+        diagnosticInfo = `Помилка запиту: ${err.message}`;
       }
+    } else {
+      diagnosticInfo = 'У системі ще не вказано ID сервера Discord (Guild ID). Увійдіть як Куратор (admin / 7777) та налаштуйте його у вкладці «Ролі та Доступ».';
     }
 
      if (!assignedRole) {
+      const errorMsg = 'У вашому Discord-акаунті відсутня роль Інструктора або Шерифа на сервері фракції. Вхід дозволено лише викладацькому складу.';
       return res.send(`
         <!DOCTYPE html>
         <html>
-          <head>
-            <title>Доступ заборонено</title>
-            <style>
-              body { background: #090d16; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
-              .card { background: #0f172a; border: 1px solid #ef4444; padding: 32px; border-radius: 16px; max-width: 380px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
-            </style>
-          </head>
           <body>
-            <div class="card">
-              <h2 style="color: #ef4444; margin: 0 0 12px 0;">⛔ Доступ заборонено</h2>
-              <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin-bottom: 20px;">
-                У вашому Discord-акаунті відсутня роль <strong>Інструктора</strong> або <strong>Шерифа</strong> на сервері фракції.<br><br>
-                Кабінет призначено суто для керівного та викладацького складу.
-              </p>
-              <button onclick="window.close()" style="padding: 10px 24px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 8px; cursor: pointer; font-weight: bold;">
-                Закрити вікно
-              </button>
-            </div>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: ${JSON.stringify(errorMsg)} }, '*');
+                window.close();
+              } else {
+                window.location.href = '/';
+              }
+            </script>
           </body>
         </html>
       `);
     }
 
-    const existingUser = db.users.find(
-      (u) => u.discordId && (u.discordId === discordUser.id || u.discordId === discordUser.username)
-    );
+    const displayName = guildNickname || discordUser.global_name || discordUser.username;
+    let authedUser = db.users.find((u) => u.discordId === discordUser.id);
 
-    if (existingUser && !db.settings.discordGuildId) {
-      assignedRole = existingUser.role;
-    } else {
-      assignedRole = 'cadet';
-    }
-
-    const displayName = discordUser.global_name || discordUser.username;
-    let authedUser: User;
-
-    if (existingUser) {
-      existingUser.name = displayName;
-      existingUser.role = assignedRole;
-      existingUser.discordId = discordUser.id;
-      existingUser.discordUsername = discordUser.username;
-      existingUser.discordAvatar = discordUser.avatar
+    if (authedUser) {
+      authedUser.name = displayName;
+      authedUser.role = assignedRole; // БІЛЬШЕ НЕ ПЕРЕЗАПИСУЄТЬСЯ НА CADET!
+      authedUser.discordUsername = discordUser.username;
+      authedUser.discordAvatar = discordUser.avatar
         ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
         : undefined;
-      existingUser.authMethod = 'discord_oauth';
-      authedUser = existingUser;
+      authedUser.authMethod = 'discord_oauth';
     } else {
       authedUser = {
         id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -343,23 +350,60 @@ app.post('/api/settings', requireLeader, (req, res) => {
 
 app.post('/api/discord/test', requireLeader, async (req, res) => {
   const db = getDb();
-  const webhookUrl = req.body.webhookUrl || db.settings.discordWebhookUrl;
+  const webhookUrl = (req.body.webhookUrl || db.settings.discordWebhookUrl || '').trim();
   if (!webhookUrl) return res.status(400).json({ error: 'Вкажіть URL Discord Webhook' });
 
   try {
     const targetUrl = webhookUrl.includes('?') ? `${webhookUrl}&wait=true` : `${webhookUrl}?wait=true`;
-    const response = await fetch(targetUrl, {
+
+    const payload: any = {
+      username: `${db.settings.academyName || 'Шериф Академія'} | Тест`,
+      avatar_url: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=128&q=80',
+      content: 'Тестове повідомлення від Системи Онлайн-Тестування Академії.',
+      // Обов'язково для Forum-каналів Discord!
+      thread_name: '📋 Тестова перевірка Discord Webhook',
+      embeds: [
+        {
+          title: '✅ Тестова перевірка інтеграції Discord',
+          description: 'Зв’язок успішно встановлено! Система готова автоматично публікувати результати іспитів кадетів.',
+          color: 0x10b981,
+          fields: [
+            { name: 'Академія', value: db.settings.academyName || 'Sheriff Academy', inline: true },
+            { name: 'Фракція', value: db.settings.factionTag || 'BCSD', inline: true },
+            { name: 'Час тесту', value: new Date().toLocaleString('uk-UA'), inline: true },
+          ],
+          footer: { text: 'Шериф Департамент • Discord Webhook' },
+        },
+      ],
+    };
+
+    // Перша спроба відправки (як для Forum-каналу з thread_name)
+    let response = await fetch(targetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: `${db.settings.academyName} | Тест`,
-        content: 'Тестова перевірка Discord Webhook успішна!',
-      }),
+      body: JSON.stringify(payload),
     });
-    if (!response.ok) return res.status(response.status).json({ error: await response.text() });
-    res.json({ success: true, message: 'Тестове сповіщення надіслано в Discord!' });
+
+    // Якщо це звичайний текстовий канал (і Discord лається на thread_name), пробуємо без нього
+    if (!response.ok && response.status === 400) {
+      delete payload.thread_name;
+      response = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('[Discord Webhook Error]:', response.status, errText);
+      return res.status(400).json({ error: `Discord помилка (${response.status}): ${errText}` });
+    }
+
+    res.json({ success: true, message: 'Тестове повідомлення успішно надіслано в Discord!' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('[Webhook Network Error]:', err);
+    res.status(500).json({ error: `Мережева помилка: ${err.message}` });
   }
 });
 
@@ -425,11 +469,11 @@ app.delete('/api/instructors/:id', requireLeader, (req, res) => {
 
 // ==================== TESTS CRUD (ТІЛЬКИ ШЕРИФ) ====================
 
-app.get('/api/tests', (req, res) => {
+app.get('/api/tests', requireStaff, (req, res) => {
   res.json(getDb().tests);
 });
 
-app.post('/api/tests', requireLeader, (req, res) => {
+app.post('/api/tests', requireStaff, (req, res) => {
   const db = getDb();
   const testData = req.body;
   if (!testData.title) return res.status(400).json({ error: 'Назва обов’язкова' });
@@ -452,7 +496,7 @@ app.post('/api/tests', requireLeader, (req, res) => {
   res.json(newTest);
 });
 
-app.put('/api/tests/:id', requireLeader, (req, res) => {
+app.put('/api/tests/:id', requireStaff, (req, res) => {
   const db = getDb();
   const idx = db.tests.findIndex((t) => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Тест не знайдено' });
@@ -461,7 +505,7 @@ app.put('/api/tests/:id', requireLeader, (req, res) => {
   res.json(db.tests[idx]);
 });
 
-app.delete('/api/tests/:id', requireLeader, (req, res) => {
+app.delete('/api/tests/:id', requireStaff, (req, res) => {
   const db = getDb();
   db.tests = db.tests.filter((t) => t.id !== req.params.id);
   saveDb();
@@ -477,7 +521,7 @@ app.get('/api/tokens', (req, res) => {
 app.post('/api/links/generate', (req, res) => {
   const { cadetNickname, cadetStatic, cadetDiscord, testId } = req.body;
   if (!cadetNickname || !cadetStatic || !testId) return res.status(400).json({ error: 'Заповніть поля' });
-
+  
   const db = getDb();
   const test = db.tests.find((t) => t.id === testId);
   if (!test) return res.status(404).json({ error: 'Тест не знайдено' });
@@ -496,6 +540,9 @@ app.post('/api/links/generate', (req, res) => {
     }
   });
 
+  const instructorId = activeInstructor ? activeInstructor.id : 'usr_curator';
+  const instructorName = activeInstructor ? activeInstructor.name : 'Інструктор Академії';
+
   const tokenString = `exam-${crypto.randomBytes(8).toString('hex')}`;
   const newToken: ExamToken = {
     id: `tok_${Date.now()}`,
@@ -505,8 +552,8 @@ app.post('/api/links/generate', (req, res) => {
     cadetNickname: cadetNickname.trim(),
     cadetStatic: cadetStatic.trim(),
     cadetDiscord: (cadetDiscord || '').trim(),
-    instructorId: activeInstructor.id,
-    instructorName: activeInstructor.name,
+    instructorId,
+    instructorName,
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     status: 'pending',
