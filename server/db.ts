@@ -21,8 +21,8 @@ export interface DatabaseSchema {
 }
 
 const defaultSettings: AppSettings = {
-  academyName: process.env.ACADEMY_NAME || 'Поліцейська Академія',
-  factionTag: process.env.FACTION_TAG || 'Шериф / Поліція',
+  academyName: process.env.ACADEMY_NAME || 'Sheriff Academy',
+  factionTag: process.env.FACTION_TAG || 'BCSD',
   discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL || '',
   discordForumThreadNameFormat: '📋 [ІСПИТ] {test} — {cadet} ({static})',
   discordRoleMentionId: '',

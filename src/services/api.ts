@@ -204,7 +204,9 @@ export const api = {
       headers: getAuthHeaders(),
       body: JSON.stringify({ grades }),
     });
-    return res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Не вдалося зберегти оцінки');
+    return data;
   },
 
   async submitDecision(id: string, decision: string, comment: string, threadId?: string): Promise<any> {

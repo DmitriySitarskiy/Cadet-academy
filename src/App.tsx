@@ -16,7 +16,6 @@ import { CadetLookupModal } from './components/CadetLookupModal';
 import { InstructorAccountsModal } from './components/InstructorAccountsModal';
 import { ExamTaker } from './components/ExamTaker';
 import { RoleManager } from './components/RoleManager';
-import { DiscordAuthModal } from './components/DiscordAuthModal';
 import { BrandMark } from './components/ui';
 import { User, AppSettings, TestConfig, ExamResult } from './types';
 import { api } from './services/api';
@@ -47,8 +46,6 @@ export default function App() {
   const [reviewResultId, setReviewResultId] = useState<string | null>(null);
   const [showCadetLookup, setShowCadetLookup] = useState<boolean>(false);
   const [showInstructorsModal, setShowInstructorsModal] = useState<boolean>(false);
-  const [showDiscordAuth, setShowDiscordAuth] = useState<boolean>(false);
-  const [authTab, setAuthTab] = useState<'oauth' | 'backup'>('oauth');
 
   // Токен іспиту або результат у хеші / параметрах адреси
   useEffect(() => {
@@ -146,9 +143,10 @@ export default function App() {
     setCurrentTab('results');
   };
 
-  const openSignIn = (tab: 'oauth' | 'backup') => {
-    setAuthTab(tab);
-    setShowDiscordAuth(true);
+  const handleUserChanged = (u: User) => {
+    setGlobalAuthError(null);
+    setCurrentUser(u);
+    loadAllData();
   };
 
   // Режим кадета: окремий екран складання іспиту
@@ -158,22 +156,6 @@ export default function App() {
 
   const isStaff = Boolean(currentUser && (currentUser.role === 'leader' || currentUser.role === 'instructor'));
   const isLeader = currentUser?.role === 'leader';
-
-  const authModal = (
-    <DiscordAuthModal
-      isOpen={showDiscordAuth}
-      initialTab={authTab}
-      onClose={() => setShowDiscordAuth(false)}
-      currentUser={currentUser}
-      settings={settings}
-      onAuthError={(msg) => setGlobalAuthError(msg)}
-      onUserChanged={(u) => {
-        setGlobalAuthError(null);
-        setCurrentUser(u);
-        loadAllData();
-      }}
-    />
-  );
 
   // Поки сесія завантажується
   if (loading && !currentUser) {
@@ -190,10 +172,12 @@ export default function App() {
   // Екран входу
   if (!isStaff) {
     return (
-      <>
-        <SignInScreen settings={settings} error={globalAuthError} onSignIn={openSignIn} />
-        {authModal}
-      </>
+      <SignInScreen
+        settings={settings}
+        error={globalAuthError}
+        onUserChanged={handleUserChanged}
+        onAuthError={setGlobalAuthError}
+      />
     );
   }
 
@@ -290,7 +274,6 @@ export default function App() {
         />
       )}
 
-      {authModal}
     </div>
   );
 }

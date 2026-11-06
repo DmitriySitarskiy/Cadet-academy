@@ -840,6 +840,44 @@ app.post('/api/links/generate', requireStaff, (req, res) => {
   const test = db.tests.find((t) => t.id === testId);
   if (!test) return res.status(404).json({ error: 'Тест не знайдено' });
 
+  // ── Контроль перездач: інтервал між іспитами та ліміт спроб ──
+  {
+    const norm = (v: any) => String(v || '').trim().toLowerCase();
+    const staticKey = norm(cadetStatic);
+    const now = Date.now();
+    const cooldownMs = (Number(test.cooldownHours) >= 0 ? Number(test.cooldownHours) : 24) * 3600 * 1000;
+    const fmt = (ms: number) => new Date(ms).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+    const sameCadet = (x: any) => norm(x.cadetStatic) === staticKey && x.testId === testId;
+    const cadetResults = db.results.filter(sameCadet);
+
+    if (cadetResults.some((r) => r.status === 'passed')) {
+      return res.status(409).json({ error: 'Цей кадет уже склав цей тест. Нове посилання не потрібне.' });
+    }
+    if (cadetResults.some((r) => r.status === 'pending_review')) {
+      return res.status(409).json({ error: 'Робота кадета ще на перевірці. Спершу винесіть вердикт.' });
+    }
+    const activeToken = db.tokens.find(
+      (t) => sameCadet(t) && (t.status === 'pending' || t.status === 'in_progress') && new Date(t.expiresAt).getTime() > now
+    );
+    if (activeToken) {
+      return res.status(409).json({ error: 'Для цього кадета вже є активне посилання на цей тест. Дочекайтесь його використання або завершення терміну.' });
+    }
+
+    const failed = cadetResults.filter((r) => r.status === 'failed');
+    const maxAttempts = Number(test.maxAttempts) || 0;
+    if (maxAttempts > 0 && failed.length >= maxAttempts) {
+      return res.status(409).json({ error: `Кадет вичерпав ліміт спроб (${maxAttempts}). Щоб дозволити ще одну, винесіть рішення «Дозволити перездачу» в останній роботі.` });
+    }
+    if (failed.length > 0) {
+      const last = failed.reduce((a, b) => (new Date(a.submittedAt) > new Date(b.submittedAt) ? a : b));
+      const availableAt = new Date(last.submittedAt).getTime() + cooldownMs;
+      if (availableAt > now) {
+        return res.status(429).json({ error: `Кадет не склав тест. Наступна спроба буде доступна після ${fmt(availableAt)} (інтервал між іспитами — ${Math.round(cooldownMs / 3600000)} год).` });
+      }
+    }
+  }
+
   const activeInstructor = getCurrentUser(req);
   const pool = [...test.questions];
   const countToPick = Math.min(pool.length, test.randomQuestionCount || 5);
@@ -1131,6 +1169,38 @@ app.get('/api/results/:id', requireStaff, (req, res) => {
     tokenRecord: token,
     answers: detailedAnswers,
   });
+});
+
+app.post('/api/results/:id/grade-open', requireStaff, (req, res) => {
+  const { grades } = req.body || {};
+  if (!Array.isArray(grades)) return res.status(400).json({ error: 'Невірні дані оцінок' });
+  const db = getDb();
+  const result: any = db.results.find((r) => r.id === req.params.id);
+  if (!result) return res.status(404).json({ error: 'Результат не знайдено' });
+  const test = db.tests.find((t) => t.id === result.testId);
+
+  for (const g of grades) {
+    const ans = (result.answers || []).find((a: any) => a.questionId === g.questionId && a.type === 'open');
+    if (!ans) continue;
+    const max = Number(ans.maxPoints) || 0;
+    const score = Math.max(0, Math.min(max, Math.round(Number(g.manualScore) || 0)));
+    ans.manualScore = score;
+    ans.instructorComment = String(g.instructorComment || '').slice(0, 2000);
+  }
+
+  const openAnswers = (result.answers || []).filter((a: any) => a.type === 'open');
+  result.manualScore = openAnswers.reduce((sum: number, a: any) => sum + (Number(a.manualScore) || 0), 0);
+  result.totalScore = (Number(result.autoScore) || 0) + result.manualScore;
+  const maxTotal = Number(result.maxTotalScore) || 0;
+  result.percentage = maxTotal > 0 ? Math.round((result.totalScore / maxTotal) * 100) : 0;
+
+  const passMark = test?.passingScorePercent ?? 70;
+  result.autoPassed = result.percentage >= passMark;
+  // Якщо інструктор ще не виніс вердикт, статус лишається «на перевірці»
+  if (!result.instructorDecision) result.status = 'pending_review';
+
+  saveDb();
+  res.json({ success: true, result });
 });
 
 app.post('/api/results/:id/decision', requireStaff, async (req, res) => {
