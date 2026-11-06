@@ -2,6 +2,7 @@ import React from 'react';
 import { LogIn, KeyRound, AlertTriangle } from 'lucide-react';
 import { AppSettings } from '../types';
 import { BrandMark } from './ui';
+import { DEPARTMENT_NAME, ACADEMY_NAME, MOTTO_LATIN, MOTTO_UA } from '../brand';
 
 interface SignInScreenProps {
   settings: AppSettings | null;
@@ -19,21 +20,19 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ settings, error, onS
       />
       <div className="relative flex items-center gap-3">
         <BrandMark size={44} />
-        <div>
-          <div className="text-base font-semibold text-white leading-tight">
-            {settings?.academyName || 'Академія кадетів'}
-          </div>
-          <div className="text-sm text-slate-500">{settings?.factionTag || 'Кабінет інструкторів'}</div>
-        </div>
+        <div className="text-base font-semibold leading-tight text-white">{DEPARTMENT_NAME}</div>
       </div>
 
-      <div className="relative my-12 max-w-[34rem] lg:my-0">
-        <h1 className="text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-5xl">
-          Іспити для кадетів без списування
+      <div className="relative my-14 lg:my-0">
+        <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight text-white sm:text-6xl">
+          {settings?.academyName || ACADEMY_NAME}
         </h1>
-        <p className="mt-5 text-base leading-relaxed text-slate-400 max-w-[46ch]">
-          Видавайте одноразові посилання, перевіряйте роботи й виносьте вердикти. Результат одразу потрапляє у вашу
-          гілку в Discord.
+        <p className="mt-5 font-serif text-3xl italic leading-tight text-amber-200/90">{MOTTO_LATIN}</p>
+        <p className="mt-1.5 text-sm text-slate-500">{MOTTO_UA}</p>
+
+        <p className="mt-12 max-w-[44ch] border-t border-[#1b2740] pt-6 text-base leading-relaxed text-slate-400">
+          Кабінет інструкторів: видавайте одноразові посилання, перевіряйте роботи й виносьте вердикти. Результат
+          одразу потрапляє у вашу гілку в Discord.
         </p>
       </div>
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { FileText, Send, History, BookOpen, Radio, Key, Users, LogOut, X } from 'lucide-react';
 import { User, AppSettings } from '../types';
 import { BrandMark } from './ui';
+import { ACADEMY_NAME, DEPARTMENT_SHORT } from '../brand';
 
 interface SidebarProps {
   currentTab: string;
@@ -86,9 +87,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <BrandMark size={38} />
           <div className="min-w-0 flex-1">
             <div className="truncate text-[0.95rem] font-semibold leading-tight text-white">
-              {settings?.academyName || 'Академія кадетів'}
+              {settings?.academyName || ACADEMY_NAME}
             </div>
-            <div className="truncate text-xs text-slate-500 mt-0.5">{settings?.factionTag || 'Кабінет інструкторів'}</div>
+            <div className="truncate text-xs text-slate-500 mt-0.5">{settings?.factionTag || DEPARTMENT_SHORT}</div>
           </div>
           <button onClick={onClose} className="btn btn-ghost !p-1.5 lg:hidden" aria-label="Закрити меню">
             <X className="w-5 h-5" />
