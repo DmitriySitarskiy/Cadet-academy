@@ -31,8 +31,8 @@ const defaultSettings: AppSettings = {
   discordLeaderRoleId: process.env.DISCORD_LEADER_ROLE_ID || '',
   discordInstructorRoleId: process.env.DISCORD_INSTRUCTOR_ROLE_ID || '',
   discordClientId: process.env.DISCORD_CLIENT_ID || '',
-  discordClientSecret: process.env.DISCORD_CLIENT_SECRET || '',
-  leaderSecurityPin: process.env.LEADER_SECURITY_PIN || '7777',
+  // Секрет і PIN НЕ зберігаються в базі. Беруться зі змінних середовища (див. server.ts).
+  discordClientSecret: '',
   roleTitles: {
     leader: 'Шеф Департаменту / Лідер',
     instructor: 'Інструктор Академії',
@@ -42,8 +42,18 @@ const defaultSettings: AppSettings = {
 };
 
 const defaultUsers: User[] = [];
+function sanitizeSettings(settings: any): AppSettings {
+  const merged: AppSettings = { ...defaultSettings, ...(settings || {}) };
+  // Прибираємо старі чутливі поля, які раніше потрапляли в базу
+  delete (merged as any).leaderSecurityPin;
+  if (process.env.DISCORD_CLIENT_SECRET) merged.discordClientSecret = '';
+  merged.roleTitles = { ...defaultSettings.roleTitles, ...(merged.roleTitles || {}) };
+  return merged;
+}
+
 function sanitizeUsers(users: User[] = []): User[] {
-  const legacy = new Set(['usr_leader_1', 'usr_inst_1', 'usr_inst_2', 'usr_initial_admin', 'usr_sheriff_root']);
+  // ВАЖЛИВО: 'usr_sheriff_root' тут НЕ має бути — це акаунт резервного входу Шерифа.
+  const legacy = new Set(['usr_leader_1', 'usr_inst_1', 'usr_inst_2', 'usr_initial_admin']);
   return users.filter((u) => !legacy.has(u.id));
 }
 
@@ -69,8 +79,12 @@ async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
   return null;
 }
 
+let pendingPushes = 0;
+let lastSaveAt = 0;
+
 async function pushToSupabase(data: DatabaseSchema): Promise<void> {
   if (!SUPABASE_URL || !SUPABASE_KEY) return;
+  pendingPushes++;
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?on_conflict=id`, {
       method: 'POST',
@@ -91,6 +105,9 @@ async function pushToSupabase(data: DatabaseSchema): Promise<void> {
     }
   } catch (err) {
     console.error('[Supabase Save Exception]:', err);
+  } finally {
+    pendingPushes--;
+    lastSaveAt = Date.now();
   }
 }
 
@@ -103,7 +120,7 @@ function initDbSync(): DatabaseSchema {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
       return {
-        settings: { ...defaultSettings, ...(parsed.settings || {}) },
+        settings: sanitizeSettings(parsed.settings),
         users: sanitizeUsers(parsed.users || []),
         tests: parsed.tests || [],
         tokens: parsed.tokens || [],
@@ -136,10 +153,12 @@ let lastCloudFetchTime = 0;
 
 export async function ensureDbLoaded(): Promise<void> {
   if (Date.now() - lastCloudFetchTime < 3000) return;
+  // Не підтягуємо базу з хмари, поки наші зміни ще записуються (інакше свіжі дані затираються старими)
+  if (pendingPushes > 0 || Date.now() - lastSaveAt < 5000) return;
   const cloudDb = await fetchFromSupabase();
   if (cloudDb) {
     dbInstance = {
-      settings: { ...defaultSettings, ...(cloudDb.settings || {}) },
+      settings: sanitizeSettings(cloudDb.settings),
       users: sanitizeUsers(cloudDb.users || []),
       tests: cloudDb.tests || [],
       tokens: cloudDb.tokens || [],
@@ -155,6 +174,7 @@ export function getDb(): DatabaseSchema {
 }
 
 export function saveDb(): void {
+  lastSaveAt = Date.now();
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });

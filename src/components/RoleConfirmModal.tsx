@@ -252,14 +252,14 @@ export const RoleConfirmModal: React.FC<RoleConfirmModalProps> = ({
                   <span>Введіть підтвердження:</span>
                 </label>
                 <span className="text-[10px] text-amber-400 font-mono">
-                  Надрукуйте <strong>ПІДТВЕРДЖУЮ</strong> або PIN
+                  Надрукуйте <strong>ПІДТВЕРДЖУЮ</strong>
                 </span>
               </div>
               <input
                 type="text"
                 value={confirmationInput}
                 onChange={(e) => setConfirmationInput(e.target.value)}
-                placeholder='Введіть "ПІДТВЕРДЖУЮ" або PIN лідера (7777)'
+                placeholder='Введіть "ПІДТВЕРДЖУЮ"'
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-mono text-amber-300 focus:outline-none focus:border-amber-500 placeholder-slate-600"
                 autoFocus
               />

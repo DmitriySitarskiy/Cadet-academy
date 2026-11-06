@@ -38,34 +38,41 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
   const [backupError, setBackupError] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      const origin = event.origin;
-      const isAllowedOrigin =
-        origin === window.location.origin ||
-        origin.endsWith('.netlify.app') ||
-        origin.endsWith('.run.app') ||
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1');
-
-      if (!isAllowedOrigin) return;
-
-      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-        const authedUser = event.data.user;
-        if (authedUser) {
-          onUserChanged(authedUser);
+    const handleAuthData = (data: any) => {
+      if (data?.type === 'OAUTH_AUTH_SUCCESS') {
+        if (data.user) {
+          onUserChanged(data.user);
           onClose();
         }
-      } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
+      } else if (data?.type === 'OAUTH_AUTH_ERROR') {
         if (onAuthError) {
-          onAuthError(event.data.error || 'У вас немає ролі Інструктора або Шерифа на сервері фракції.');
+          onAuthError(data.error || 'У вас немає ролі Інструктора або Шерифа на сервері фракції.');
         }
-        onClose();
+        setOauthError(data.error || 'У вас немає ролі Інструктора або Шерифа на сервері фракції.');
       }
     };
 
+    // Приймаємо повідомлення лише від нашого власного сайту
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      handleAuthData(event.data);
+    };
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [onUserChanged, onClose]);
+
+    // Резервний канал: Discord може скинути window.opener, і postMessage не дійде
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('cadet_auth');
+      channel.onmessage = (event) => handleAuthData(event.data);
+    } catch {
+      /* BroadcastChannel недоступний */
+    }
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      channel?.close();
+    };
+  }, [onUserChanged, onClose, onAuthError]);
 
   if (!isOpen) return null;
 

@@ -7,11 +7,11 @@ import {
   DiscordLogEntry,
 } from '../types';
 
+// Авторизація тепер працює через httpOnly cookie (його ставить сервер після входу),
+// тому жодних ідентифікаторів користувача в заголовках передавати не потрібно.
 function getAuthHeaders(extra: Record<string, string> = {}): Record<string, string> {
-  const activeUserId = typeof window !== 'undefined' ? localStorage.getItem('cadet_current_user_id') || '' : '';
   return {
     'Content-Type': 'application/json',
-    ...(activeUserId ? { 'x-user-id': activeUserId } : {}),
     ...extra,
   };
 }
@@ -42,6 +42,17 @@ export const api = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Помилка авторизації Шерифа');
+    return data;
+  },
+
+  async changeCuratorPassword(payload: { currentPassword: string; newPassword: string }): Promise<{ success: boolean; message: string }> {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Помилка зміни пароля');
     return data;
   },
 
@@ -85,7 +96,10 @@ export const api = {
       headers: getAuthHeaders(),
       body: JSON.stringify(settings),
     });
-    if (!res.ok) throw new Error('Помилка оновлення налаштувань');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Помилка оновлення налаштувань');
+    }
     return res.json();
   },
 
@@ -109,7 +123,7 @@ export const api = {
   // Tests
   async getTests(): Promise<TestConfig[]> {
     const res = await fetch('/api/tests', { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Помилка завантаження тестів');
+    if (!res.ok) throw new Error(`Помилка завантаження тестів (${res.status})`);
     return res.json();
   },
 

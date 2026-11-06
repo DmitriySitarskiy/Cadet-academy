@@ -142,8 +142,10 @@ export interface AppSettings {
   discordLeaderRoleId?: string;
   discordInstructorRoleId?: string;
   discordClientId?: string;
+  // Секрет і хеш пароля НІКОЛИ не передаються на клієнт; сервер віддає лише прапорець *Set
   discordClientSecret?: string;
-  leaderSecurityPin?: string;
+  discordClientSecretSet?: boolean;
+  curatorPasswordHash?: string;
 
   // Custom Role Titles & Configurations
   roleTitles: {

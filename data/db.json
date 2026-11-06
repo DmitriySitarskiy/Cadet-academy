@@ -2,7 +2,7 @@
   "settings": {
     "academyName": "Sheriff Academy",
     "factionTag": "BCSD",
-    "discordWebhookUrl": "https://discord.com/api/webhooks/1567956360090619980/msVLWS6QPslFb_I0NgBKW3f_OucRvxk-MGK06QRlfctErKr-CaAJsvaG6Y5Sqv41LlMe",
+    "discordWebhookUrl": "",
     "discordForumThreadNameFormat": "📋 [ІСПИТ] {test} — {cadet} ({static})",
     "discordRoleMentionId": "",
     "antiCheatStrictness": "high",
@@ -10,8 +10,7 @@
     "discordLeaderRoleId": "1567973681836331168",
     "discordInstructorRoleId": "1567974006491975862",
     "discordClientId": "1567975234575798402",
-    "discordClientSecret": "Uvlfqy22hltoKY69LJwWp0xLgO9nsnzW",
-    "leaderSecurityPin": "7777",
+    "discordClientSecret": "",
     "roleTitles": {
       "leader": "Шеф Департаменту / Лідер",
       "instructor": "Інструктор Академії",

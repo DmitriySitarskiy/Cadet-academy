@@ -74,28 +74,32 @@ export default function App() {
  const loadAllData = async () => {
     try {
       setLoading(true);
-      const [sessionData, testsData, resultsData] = await Promise.all([
-        api.getSession(),
-        api.getTests(),
-        api.getResults(),
-      ]);
+      // 1) Спершу сесія: вона публічна й повертає користувача (за cookie) та налаштування без секретів
+      const sessionData = await api.getSession();
+      const user = sessionData?.user || null;
+      setCurrentUser(user);
+      setAllUsers(sessionData?.allUsers || []);
+      setSettings(sessionData?.settings || null);
 
-      if (sessionData && sessionData.user) {
-        setCurrentUser(sessionData.user);
+      // 2) Тести та результати — лише для авторизованих інструкторів / Шерифа (інакше сервер відповість 401/403)
+      const isStaffUser = user && (user.role === 'leader' || user.role === 'instructor');
+      if (isStaffUser) {
+        const [testsData, resultsData] = await Promise.all([
+          api.getTests().catch((e) => {
+            console.error(e);
+            return [] as TestConfig[];
+          }),
+          api.getResults(),
+        ]);
+        setTests(testsData || []);
+        setResults(resultsData || []);
       } else {
-        // Якщо сервер не підтвердив користувача — примусово очищаємо локальний кеш
-        setCurrentUser(null);
-        localStorage.removeItem('cadet_current_user_id');
+        setTests([]);
+        setResults([]);
       }
-
-      setAllUsers(sessionData.allUsers || []);
-      setSettings(sessionData.settings || null);
-      setTests(testsData || []);
-      setResults(resultsData || []);
     } catch (e) {
       console.error('Error loading initial data', e);
       setCurrentUser(null);
-      localStorage.removeItem('cadet_current_user_id');
     } finally {
       setLoading(false);
     }
@@ -111,8 +115,9 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    localStorage.removeItem('cadet_current_user_id');
     setCurrentUser(null);
+    setTests([]);
+    setResults([]);
     setShowDiscordAuth(true);
   };
 
@@ -120,6 +125,7 @@ export default function App() {
     try {
       const res = await api.switchUser(userId);
       setCurrentUser(res.user);
+      loadAllData();
     } catch (e) {
       console.error(e);
     }
@@ -206,8 +212,9 @@ export default function App() {
           onClose={() => setShowDiscordAuth(false)}
           currentUser={currentUser}
           settings={settings}
+          onAuthError={(msg) => setGlobalAuthError(msg)}
           onUserChanged={(u) => {
-            localStorage.setItem('cadet_current_user_id', u.id);
+            setGlobalAuthError(null);
             setCurrentUser(u);
             loadAllData();
           }}
@@ -373,9 +380,9 @@ export default function App() {
         onClose={() => setShowDiscordAuth(false)}
         currentUser={currentUser}
         settings={settings}
+        onAuthError={(msg) => setGlobalAuthError(msg)}
         onUserChanged={(u) => {
           setGlobalAuthError(null);
-          localStorage.setItem('cadet_current_user_id', u.id);
           setCurrentUser(u);
           loadAllData();
         }}

@@ -78,7 +78,8 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
       setDiscordLeaderRoleId(settings.discordLeaderRoleId || '');
       setDiscordInstructorRoleId(settings.discordInstructorRoleId || '');
       setDiscordClientId(settings.discordClientId || '');
-      setDiscordClientSecret(settings.discordClientSecret || '');
+      // Секрет сервер ніколи не віддає — поле лишається порожнім (порожнє = «не змінювати»)
+      setDiscordClientSecret('');
     }
   }, [settings]);
 
@@ -111,6 +112,7 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
       reason,
     });
 
+    setDiscordClientSecret('');
     setSuccessNotice('Структуру ролей та прив’язку Discord успішно збережено!');
     setTimeout(() => setSuccessNotice(null), 4000);
     onRefreshSettings();
@@ -391,11 +393,11 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
                 value={discordClientSecret}
                 onChange={(e) => setDiscordClientSecret(e.target.value)}
                 disabled={!isLeader}
-                placeholder="••••••••••••••••••••••••"
+                placeholder={settings?.discordClientSecretSet ? '•••••••• збережено (залиште порожнім, щоб не змінювати)' : 'Вставте Client Secret'}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 disabled:opacity-60"
               />
               <div className="text-[10px] text-slate-500 mt-1">
-                Зберігається суворо на сервері
+                Зберігається суворо на сервері. Надійніше — змінна середовища DISCORD_CLIENT_SECRET на хостингу.
               </div>
             </div>
           </div>
