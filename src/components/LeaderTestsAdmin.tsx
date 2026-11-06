@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { TestConfig, Question, QuestionType, User } from '../types';
 import { api } from '../services/api';
+import { PageHeader, EmptyState } from './ui';
 
 interface LeaderTestsAdminProps {
   tests: TestConfig[];
@@ -163,233 +164,237 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
     }
   };
 
+  // Поточний іспит береться зі свіжого списку, тому зміни одразу видно
+  const activeTest =
+    tests.find((t) => t.id === selectedTestForBank?.id) || selectedTestForBank || tests[0] || null;
+
   return (
-    <div className="space-y-8">
-      {/* Top Banner */}
-      <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-400 uppercase tracking-wider mb-1">
-            <Lock className="w-3.5 h-3.5" />
-            Керування навчальною програмою
-          </div>
-          <h1 className="text-xl font-bold text-white">
-            Банк іспитів, регламенти та питання
-          </h1>
-          <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            Викладацький режим: створення іспитів, наповнення банку запитань, налаштування часу та критеріїв оцінювання.
-          </p>
-        </div>
-
-        {canManageTests && (
-          <button
-            onClick={handleCreateTest}
-            className="py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors shrink-0 shadow-sm shadow-amber-500/20"
-          >
-            <Plus className="w-4 h-4" />
-            Створити новий іспит
-          </button>
-        )}
-      </div>
-
-      {/* Tests Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tests.map((test) => (
-          <div
-            key={test.id}
-            className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between hover:border-slate-700 transition-colors space-y-4"
-          >
-            <div className="space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-[11px] font-semibold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
-                  {test.category}
-                </span>
-
-                <div className="flex items-center gap-1">
-                  {canManageTests && (
-                    <>
-                      <button
-                        onClick={() => setEditingTest(test)}
-                        className="p-1 text-slate-400 hover:text-white transition-colors"
-                        title="Змінити налаштування"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTest(test.id, test.title)}
-                        className="p-1 text-slate-400 hover:text-red-400 transition-colors"
-                        title="Видалити іспит"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-base font-bold text-white line-clamp-1">{test.title}</h3>
-                <p className="text-xs text-slate-400 line-clamp-2 mt-1 leading-relaxed">
-                  {test.description || 'Немає опису'}
-                </p>
-              </div>
-
-              {/* Specs */}
-              <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 grid grid-cols-2 gap-2 text-center text-xs">
-                <div>
-                  <span className="text-[10px] text-slate-500 block">Час на іспит</span>
-                  <span className="font-bold text-white tabular-nums">{test.timeLimitMinutes} хв</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block">Прохідний бал</span>
-                  <span className="font-bold text-emerald-400 tabular-nums">
-                    {test.passingScorePercent}%
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block">Вибірка з банку</span>
-                  <span className="font-bold text-amber-400 tabular-nums">
-                    {test.randomQuestionCount} з {test.questions.length}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block">Спроби / Пауза</span>
-                  <span className="font-bold text-slate-300 tabular-nums">
-                    {test.maxAttempts} сп. / {test.cooldownHours} год
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setSelectedTestForBank(test)}
-              className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors border border-slate-700/60"
-            >
-              <FileQuestion className="w-3.5 h-3.5 text-amber-400" />
-              Банк питань ({test.questions.length})
+    <div>
+      <PageHeader
+        title="Банк тестів"
+        description="Іспити, їхні правила та питання, з яких система складає білет для кожного кадета."
+        actions={
+          canManageTests ? (
+            <button onClick={handleCreateTest} className="btn btn-primary">
+              <Plus className="h-4 w-4" />
+              Новий іспит
             </button>
-          </div>
-        ))}
-      </div>
+          ) : undefined
+        }
+      />
 
-      {/* Selected Test Question Bank Section */}
-      {selectedTestForBank && (
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6 animate-in fade-in duration-300">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-            <div>
-              <div className="text-xs text-amber-400 font-semibold uppercase tracking-wider">
-                Банк питань для:
-              </div>
-              <h2 className="text-xl font-bold text-white">{selectedTestForBank.title}</h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Кадету випадковим чином дістаються <strong>{selectedTestForBank.randomQuestionCount}</strong> питань з доступних {selectedTestForBank.questions.length}.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {canManageTests && (
-                <button
-                  onClick={() => handleOpenAddQuestion(selectedTestForBank)}
-                  className="py-2 px-3.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  Додати питання до банку
+      {tests.length === 0 ? (
+        <div className="panel">
+          <EmptyState
+            icon={<FileQuestion className="h-5 w-5" />}
+            title="Іспитів ще немає"
+            text="Створіть перший іспит, а потім додайте до нього питання."
+            action={
+              canManageTests ? (
+                <button onClick={handleCreateTest} className="btn btn-primary">
+                  <Plus className="h-4 w-4" />
+                  Новий іспит
                 </button>
-              )}
-              <button
-                onClick={() => setSelectedTestForBank(null)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {selectedTestForBank.questions.length === 0 ? (
-              <div className="text-center py-8 text-xs text-slate-500">
-                Банк питань порожній. Додайте перше питання.
-              </div>
-            ) : (
-              selectedTestForBank.questions.map((q, idx) => (
-                <div
-                  key={q.id}
-                  className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-slate-700 transition-colors space-y-2 text-xs"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-2">
-                      <span className="font-bold text-amber-400 shrink-0 font-mono">#{idx + 1}</span>
-                      <div>
-                        <div className="font-semibold text-white text-sm">{q.title}</div>
-                        {q.description && (
-                          <div className="text-slate-400 mt-0.5 text-xs italic">{q.description}</div>
-                        )}
+              ) : undefined
+            }
+          />
+        </div>
+      ) : (
+        <div className="grid items-start gap-6 lg:grid-cols-[19rem_minmax(0,1fr)]">
+          {/* Список іспитів */}
+          <nav aria-label="Іспити" className="panel overflow-hidden lg:sticky lg:top-6">
+            <ul className="divide-y divide-[#142038]">
+              {tests.map((test) => {
+                const isActive = activeTest?.id === test.id;
+                return (
+                  <li key={test.id}>
+                    <button
+                      onClick={() => setSelectedTestForBank(test)}
+                      aria-current={isActive ? 'true' : undefined}
+                      className={`relative w-full px-5 py-4 text-left transition-colors ${
+                        isActive ? 'bg-white/[0.04]' : 'hover:bg-white/[0.02]'
+                      }`}
+                    >
+                      {isActive && <span className="absolute bottom-3 left-0 top-3 w-[3px] rounded-r bg-amber-400" />}
+                      <div className={`truncate text-sm font-semibold ${isActive ? 'text-white' : 'text-slate-200'}`}>
+                        {test.title}
                       </div>
-                    </div>
+                      <div className="mt-1 truncate text-xs text-slate-500">{test.category}</div>
+                      <div className="num mt-2 text-xs text-slate-400">
+                        {test.timeLimitMinutes} хв · від {test.passingScorePercent}% · {test.randomQuestionCount} з{' '}
+                        {test.questions.length}
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300">
-                        {q.type === 'single'
-                          ? 'Одиночний вибір'
-                          : q.type === 'multiple'
-                          ? 'Множинний'
-                          : 'Відкритий кейс'}
-                      </span>
-                      <span className="text-amber-400 font-bold font-mono">
-                        {q.maxPoints} б.
-                      </span>
-
-                      {canManageTests && (
-                        <div className="flex items-center gap-1 ml-2">
-                          <button
-                            onClick={() => handleEditQuestion(selectedTestForBank, q)}
-                            className="p-1 text-slate-400 hover:text-white"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteQuestion(selectedTestForBank, q.id)}
-                            className="p-1 text-slate-400 hover:text-red-400"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
+          {/* Деталі вибраного іспиту */}
+          {activeTest && (
+            <div className="min-w-0 space-y-5">
+              <section className="panel p-5 sm:p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <h2 className="text-xl font-semibold tracking-tight text-white">{activeTest.title}</h2>
+                    <p className="mt-1.5 max-w-[60ch] text-sm leading-relaxed text-slate-400">
+                      {activeTest.description || 'Опису немає.'}
+                    </p>
                   </div>
-
-                  {/* Options summary */}
-                  {q.options && q.options.length > 0 && (
-                    <div className="pl-6 space-y-1 pt-1 text-[11px] text-slate-400">
-                      {q.options.map((opt, oIdx) => {
-                        const isCorrect =
-                          q.type === 'single'
-                            ? q.correctOption === oIdx
-                            : (q.correctOptions || []).includes(oIdx);
-
-                        return (
-                          <div
-                            key={oIdx}
-                            className={`flex items-center gap-2 ${
-                              isCorrect ? 'text-emerald-400 font-semibold' : ''
-                            }`}
-                          >
-                            <span>{isCorrect ? '✅' : '⚪'}</span>
-                            <span>{opt}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {q.explanation && (
-                    <div className="pl-6 pt-1 text-[10px] text-slate-500 italic">
-                      Підказка інструктору: {q.explanation}
+                  {canManageTests && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button onClick={() => setEditingTest(activeTest)} className="btn btn-secondary">
+                        <Edit2 className="h-4 w-4" />
+                        Налаштування
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTest(activeTest.id, activeTest.title)}
+                        className="btn btn-ghost !p-2.5 hover:!text-red-400"
+                        title="Видалити іспит"
+                        aria-label="Видалити іспит"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   )}
                 </div>
-              ))
-            )}
-          </div>
+
+                <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-[#142038] pt-5 sm:grid-cols-5">
+                  <div>
+                    <dt className="text-xs text-slate-500">Час</dt>
+                    <dd className="num mt-1 text-sm font-semibold text-white">{activeTest.timeLimitMinutes} хв</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Прохідний бал</dt>
+                    <dd className="num mt-1 text-sm font-semibold text-white">{activeTest.passingScorePercent}%</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Білет</dt>
+                    <dd className="num mt-1 text-sm font-semibold text-white">
+                      {activeTest.randomQuestionCount} з {activeTest.questions.length}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Спроби</dt>
+                    <dd className="num mt-1 text-sm font-semibold text-white">{activeTest.maxAttempts}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-500">Пауза між спробами</dt>
+                    <dd className="num mt-1 text-sm font-semibold text-white">{activeTest.cooldownHours} год</dd>
+                  </div>
+                </dl>
+              </section>
+
+              {/* Питання */}
+              <section className="panel">
+                <div className="flex items-center justify-between gap-4 border-b border-[#142038] px-5 py-4 sm:px-6">
+                  <div>
+                    <h3 className="text-base font-semibold text-white">
+                      Питання <span className="num ml-1 text-slate-500">{activeTest.questions.length}</span>
+                    </h3>
+                    <p className="mt-0.5 text-sm text-slate-400">
+                      Кадет отримує {activeTest.randomQuestionCount} випадкових.
+                    </p>
+                  </div>
+                  {canManageTests && (
+                    <button onClick={() => handleOpenAddQuestion(activeTest)} className="btn btn-secondary">
+                      <Plus className="h-4 w-4" />
+                      Додати питання
+                    </button>
+                  )}
+                </div>
+
+                {activeTest.questions.length === 0 ? (
+                  <EmptyState
+                    icon={<HelpCircle className="h-5 w-5" />}
+                    title="У банку немає питань"
+                    text="Додайте хоча б стільки питань, скільки має бути в білеті."
+                  />
+                ) : (
+                  <ol className="divide-y divide-[#142038]">
+                    {activeTest.questions.map((q, idx) => (
+                      <li key={q.id} className="group px-5 py-4 sm:px-6">
+                        <div className="flex items-start gap-4">
+                          <span className="num w-6 shrink-0 pt-0.5 text-sm text-slate-600">{idx + 1}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium leading-relaxed text-white">{q.title}</div>
+                            {q.description && (
+                              <div className="mt-1 text-sm leading-relaxed text-slate-400">{q.description}</div>
+                            )}
+
+                            {q.options && q.options.length > 0 && (
+                              <ul className="mt-3 space-y-1.5">
+                                {q.options.map((opt, oIdx) => {
+                                  const isCorrect =
+                                    q.type === 'single'
+                                      ? q.correctOption === oIdx
+                                      : (q.correctOptions || []).includes(oIdx);
+                                  return (
+                                    <li
+                                      key={oIdx}
+                                      className={`flex items-start gap-2.5 text-sm ${
+                                        isCorrect ? 'text-emerald-300' : 'text-slate-400'
+                                      }`}
+                                    >
+                                      {isCorrect ? (
+                                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                                      ) : (
+                                        <span className="mx-[0.3rem] mt-[0.4rem] h-2 w-2 shrink-0 rounded-full border border-slate-600" />
+                                      )}
+                                      <span>{opt}</span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            )}
+
+                            {q.explanation && (
+                              <div className="mt-3 text-xs leading-relaxed text-slate-500">
+                                Підказка інструктору: {q.explanation}
+                              </div>
+                            )}
+
+                            <div className="mt-3 flex items-center gap-3 text-xs text-slate-500">
+                              <span>
+                                {q.type === 'single'
+                                  ? 'Одна відповідь'
+                                  : q.type === 'multiple'
+                                  ? 'Кілька відповідей'
+                                  : 'Відкрите питання'}
+                              </span>
+                              <span className="num">{q.maxPoints} б.</span>
+                            </div>
+                          </div>
+
+                          {canManageTests && (
+                            <div className="flex shrink-0 items-center gap-1 opacity-100 lg:opacity-0 lg:transition-opacity lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
+                              <button
+                                onClick={() => handleEditQuestion(activeTest, q)}
+                                className="btn btn-ghost !p-2"
+                                title="Редагувати питання"
+                                aria-label="Редагувати питання"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteQuestion(activeTest, q.id)}
+                                className="btn btn-ghost !p-2 hover:!text-red-400"
+                                title="Видалити питання"
+                                aria-label="Видалити питання"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
+            </div>
+          )}
         </div>
       )}
 
@@ -414,7 +419,7 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="label">
                 Назва іспиту <span className="text-amber-400">*</span>
               </label>
               <input
@@ -422,25 +427,25 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                 required
                 value={editingTest.title || ''}
                 onChange={(e) => setEditingTest({ ...editingTest, title: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                className="field"
                 placeholder="напр. Теорія: Процесуальний кодекс"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Категорія</label>
+                <label className="label">Категорія</label>
                 <input
                   type="text"
                   value={editingTest.category || ''}
                   onChange={(e) => setEditingTest({ ...editingTest, category: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="field"
                   placeholder="Законодавство / Тактика"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="label">
                   Ліміт часу (хвилини)
                 </label>
                 <input
@@ -451,25 +456,25 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                   onChange={(e) =>
                     setEditingTest({ ...editingTest, timeLimitMinutes: Number(e.target.value) })
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="field"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Опис / Регламент</label>
+              <label className="label">Опис / Регламент</label>
               <textarea
                 rows={2}
                 value={editingTest.description || ''}
                 onChange={(e) => setEditingTest({ ...editingTest, description: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                className="field"
                 placeholder="Короткий зміст або опис для кадета"
               />
             </div>
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="label">
                   Прохідний бал (%)
                 </label>
                 <input
@@ -480,12 +485,12 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                   onChange={(e) =>
                     setEditingTest({ ...editingTest, passingScorePercent: Number(e.target.value) })
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="field"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="label">
                   Питань у білеті
                 </label>
                 <input
@@ -495,12 +500,12 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                   onChange={(e) =>
                     setEditingTest({ ...editingTest, randomQuestionCount: Number(e.target.value) })
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="field"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="label">
                   Ліміт спроб
                 </label>
                 <input
@@ -511,13 +516,13 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                   onChange={(e) =>
                     setEditingTest({ ...editingTest, maxAttempts: Number(e.target.value) })
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="field"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="label">
                 Пауза між перездачами (годин)
               </label>
               <input
@@ -528,7 +533,7 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                 onChange={(e) =>
                   setEditingTest({ ...editingTest, cooldownHours: Number(e.target.value) })
                 }
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                className="field"
               />
               <span className="text-[10px] text-slate-500 mt-0.5 block">
                 Якщо кадет завалив іспит, система не дозволить згенерувати посилання раніше вказаного часу.
@@ -576,7 +581,7 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="label">
                 Тип питання <span className="text-amber-400">*</span>
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -632,7 +637,7 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="label">
                 Текст питання <span className="text-amber-400">*</span>
               </label>
               <input
@@ -645,13 +650,13 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                     question: { ...editingQuestion.question, title: e.target.value },
                   })
                 }
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                className="field"
                 placeholder="напр. Що означає тен-код 10-4?"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="label">
                 Додатковий опис / Фабула ситуації (опціонально)
               </label>
               <textarea
@@ -663,7 +668,7 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                     question: { ...editingQuestion.question, description: e.target.value },
                   })
                 }
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                className="field"
                 placeholder="Для відкритих кейсів: детальний опис обставин інциденту..."
               />
             </div>
@@ -764,7 +769,7 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
 
             <div className="grid grid-cols-2 gap-3 pt-2">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="label">
                   Максимальні бали за відповідь
                 </label>
                 <input
@@ -778,12 +783,12 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                       question: { ...editingQuestion.question, maxPoints: Number(e.target.value) },
                     })
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="field"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Категорія</label>
+                <label className="label">Категорія</label>
                 <input
                   type="text"
                   value={editingQuestion.question.category || ''}
@@ -793,14 +798,14 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                       question: { ...editingQuestion.question, category: e.target.value },
                     })
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="field"
                   placeholder="напр. Тен-коди"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="label">
                 Пояснення / Критерії для інструктора
               </label>
               <textarea
@@ -812,7 +817,7 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
                     question: { ...editingQuestion.question, explanation: e.target.value },
                   })
                 }
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                className="field"
                 placeholder="Посилання на статтю закону або критерії оцінювання відкритого кейсу"
               />
             </div>

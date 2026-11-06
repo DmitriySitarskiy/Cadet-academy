@@ -231,7 +231,7 @@ export const RoleConfirmModal: React.FC<RoleConfirmModalProps> = ({
 
           {/* Reason Input */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="label">
               Причина перейменування / коментар аудиту (опціонально):
             </label>
             <input
@@ -239,7 +239,7 @@ export const RoleConfirmModal: React.FC<RoleConfirmModalProps> = ({
               placeholder="напр. Реорганізація Академії Нацполіції, наказ №42"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
+              className="field"
             />
           </div>
 

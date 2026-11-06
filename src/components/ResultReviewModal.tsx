@@ -563,7 +563,7 @@ export const ResultReviewModal: React.FC<ResultReviewModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="label">
                 Коментар інструктора (буде надіслано кадету в Discord гілку):
               </label>
               <textarea

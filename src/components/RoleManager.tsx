@@ -17,6 +17,7 @@ import {
 import { AppSettings, User, RoleAuditLogEntry } from '../types';
 import { api } from '../services/api';
 import { RoleConfirmModal } from './RoleConfirmModal';
+import { PageHeader, SettingsSection } from './ui';
 
 interface RoleManagerProps {
   settings: AppSettings | null;
@@ -121,430 +122,319 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
   const isLeader = currentUser?.role === 'leader';
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/40 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-            <Key className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                Центр Безпеки та Ролей
-              </span>
-              <span className="text-slate-600">·</span>
-              <span className="text-xs text-slate-400 font-mono">2-Step Confirmation</span>
-            </div>
-            <h1 className="text-xl font-bold text-white mt-1">
-              Налаштування посад та авторизації Discord
-            </h1>
-            <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
-              Задайте назви посад для вашої фракції (Шеф, Інструктор, Кадет), прив'яжіть Discord Role ID
-              для автоматичного входу, та налаштуйте права доступу.
-            </p>
-          </div>
-        </div>
+    <div>
+      <PageHeader
+        title="Ролі та доступ"
+        description="Хто може входити в кабінет і як називаються посади. Вхід через Discord працює за роллю на вашому сервері."
+      />
 
-        {!isLeader && (
-          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold flex items-center gap-2 shrink-0">
-            <Lock className="w-4 h-4 text-amber-400" />
-            <span>Режим перегляду (доступно тільки Лідеру)</span>
-          </div>
-        )}
-      </div>
-
-      {successNotice && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{successNotice}</span>
+      {!isLeader && (
+        <div className="mb-5 flex items-center gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.05] p-4 text-sm text-amber-200">
+          <Lock className="h-4 w-4 shrink-0 text-amber-400" />
+          Тільки керівник може змінювати ці налаштування. Ви бачите їх лише для перегляду.
         </div>
       )}
 
-      <form onSubmit={handleOpenConfirm} className="space-y-6">
-        {/* Role Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* 1. Leader Role */}
-          <div className="p-5 rounded-2xl bg-slate-900 border border-amber-500/30 flex flex-col justify-between space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                  <span>👑</span>
-                  <span>Роль: Лідер фракції</span>
-                </span>
-                <span className="text-[10px] font-mono bg-amber-400/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/20">
-                  Full Admin
-                </span>
-              </div>
+      {successNotice && (
+        <div
+          role="status"
+          className="mb-5 flex items-center gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm text-emerald-300"
+        >
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {successNotice}
+        </div>
+      )}
 
+      <form onSubmit={handleOpenConfirm} className="space-y-5">
+        <SettingsSection
+          title="Посади"
+          description="Назви, які бачать інструктори в кабінеті. Role ID потрібен, щоб Discord сам визначав, кого пускати."
+        >
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Відображувана назва посади:
+                <label htmlFor="leader-title" className="label">
+                  Керівник
                 </label>
                 <input
+                  id="leader-title"
                   type="text"
+                  required
                   value={leaderTitle}
                   onChange={(e) => setLeaderTitle(e.target.value)}
                   disabled={!isLeader}
-                  placeholder="напр. Шеф Поліції / Генерал"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 disabled:opacity-60"
-                  required
+                  placeholder="Шериф"
+                  className="field"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Discord Role ID (для авто-входу):
+                <label htmlFor="leader-role" className="label">
+                  Discord Role ID керівника
                 </label>
                 <input
+                  id="leader-role"
                   type="text"
+                  inputMode="numeric"
                   value={discordLeaderRoleId}
                   onChange={(e) => setDiscordLeaderRoleId(e.target.value)}
                   disabled={!isLeader}
-                  placeholder="напр. 120485928192837482"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-amber-300 font-mono placeholder-slate-600 focus:outline-none focus:border-amber-500 disabled:opacity-60"
+                  placeholder="120485928192837482"
+                  className="field font-mono"
                 />
-                <div className="text-[10px] text-slate-500 mt-1">
-                  Учасники з цією роллю в Discord отримають повні права Лідера.
-                </div>
               </div>
+              <p className="hint !mt-0 sm:col-span-2">
+                Повний доступ: тести, інструктори, вебхук і ці налаштування.
+              </p>
             </div>
 
-            <div className="pt-3 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
-              <div className="font-semibold text-slate-300">Повноваження:</div>
-              <div className="flex items-center gap-1.5 text-emerald-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Зміна та тестування Discord Webhook</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-emerald-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Створення та видалення тестів</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-emerald-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Керування інструкторами та ролями</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 2. Instructor Role */}
-          <div className="p-5 rounded-2xl bg-slate-900 border border-indigo-500/30 flex flex-col justify-between space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                  <span>🎓</span>
-                  <span>Роль: Інструктор</span>
-                </span>
-                <span className="text-[10px] font-mono bg-indigo-400/10 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/20">
-                  Examiner
-                </span>
-              </div>
-
+            <div className="grid gap-4 border-t border-[#142038] pt-6 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Відображувана назва посади:
+                <label htmlFor="instructor-title" className="label">
+                  Інструктор
                 </label>
                 <input
+                  id="instructor-title"
                   type="text"
+                  required
                   value={instructorTitle}
                   onChange={(e) => setInstructorTitle(e.target.value)}
                   disabled={!isLeader}
-                  placeholder="напр. Старший Інструктор PA"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 disabled:opacity-60"
-                  required
+                  placeholder="Інструктор"
+                  className="field"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Discord Role ID (для авто-входу):
+                <label htmlFor="instructor-role" className="label">
+                  Discord Role ID інструктора
                 </label>
                 <input
+                  id="instructor-role"
                   type="text"
+                  inputMode="numeric"
                   value={discordInstructorRoleId}
                   onChange={(e) => setDiscordInstructorRoleId(e.target.value)}
                   disabled={!isLeader}
-                  placeholder="напр. 120485928192837483"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-indigo-300 font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500 disabled:opacity-60"
+                  placeholder="120485928192837483"
+                  className="field font-mono"
                 />
-                <div className="text-[10px] text-slate-500 mt-1">
-                  Учасники з цією роллю отримають доступ екзаменатора.
-                </div>
               </div>
+              <p className="hint !mt-0 sm:col-span-2">
+                Видає посилання, перевіряє роботи, виносить вердикти. Вебхук і налаштування йому недоступні.
+              </p>
             </div>
 
-            <div className="pt-3 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
-              <div className="font-semibold text-slate-300">Повноваження:</div>
-              <div className="flex items-center gap-1.5 text-emerald-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Генерація одноразових посилань</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-emerald-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Перевірка іспитів та вердикти</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-slate-500">
-                <Lock className="w-3.5 h-3.5 text-amber-500/80" />
-                <span>Webhook та системні конфігурації заблоковані</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Cadet Role */}
-          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <span>🔰</span>
-                  <span>Роль: Кадет</span>
-                </span>
-                <span className="text-[10px] font-mono bg-slate-800 text-slate-400 px-2 py-0.5 rounded">
-                  Student
-                </span>
-              </div>
-
+            <div className="grid gap-4 border-t border-[#142038] pt-6 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Відображувана назва:
+                <label htmlFor="cadet-title" className="label">
+                  Кадет
                 </label>
                 <input
+                  id="cadet-title"
                   type="text"
+                  required
                   value={cadetTitle}
                   onChange={(e) => setCadetTitle(e.target.value)}
                   disabled={!isLeader}
-                  placeholder="напр. Кадет Академії / Курсант"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 disabled:opacity-60"
-                  required
+                  placeholder="Кадет академії"
+                  className="field"
                 />
               </div>
-
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400 leading-relaxed">
-                Кадети проходять тестування у захищеному режимі (повноекранний замок, заборона копіювання, таймер).
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
-              <div className="font-semibold text-slate-300">Повноваження:</div>
-              <div className="flex items-center gap-1.5 text-emerald-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Проходження призначених іспитів</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-slate-500">
-                <Lock className="w-3.5 h-3.5 text-amber-500/80" />
-                <span>Немає доступу до панелі інструкторів</span>
-              </div>
+              <p className="hint sm:!mt-7">
+                Кадети не входять у кабінет. Вони складають іспит за посиланням від інструктора, тому Role ID для них не
+                потрібен.
+              </p>
             </div>
           </div>
-        </div>
+        </SettingsSection>
 
-        {/* Discord Server & OAuth Configuration */}
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Radio className="w-4 h-4 text-indigo-400" />
-              <h3 className="text-sm font-bold text-white">
-                Параметри Discord Сервера та OAuth2 додатку
-              </h3>
-            </div>
-            <span className="text-[11px] text-slate-500 font-mono">Guild Integration</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Discord Server (Guild) ID:
-              </label>
-              <input
-                type="text"
-                value={discordGuildId}
-                onChange={(e) => setDiscordGuildId(e.target.value)}
-                disabled={!isLeader}
-                placeholder="напр. 109283746581928374"
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 disabled:opacity-60"
-              />
-              <div className="text-[10px] text-slate-500 mt-1">
-                Клік правою кнопкою на сервер у Discord ➔ «Копіювати ID сервера»
+        <SettingsSection
+          title="Підключення до Discord"
+          description="Дані вашого сервера та додатка з Discord Developer Portal. Вони потрібні для входу через Discord."
+        >
+          <div className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="guild-id" className="label">
+                  ID сервера (Guild ID)
+                </label>
+                <input
+                  id="guild-id"
+                  type="text"
+                  inputMode="numeric"
+                  value={discordGuildId}
+                  onChange={(e) => setDiscordGuildId(e.target.value)}
+                  disabled={!isLeader}
+                  placeholder="109283746581928374"
+                  className="field font-mono"
+                />
+                <p className="hint">Правою кнопкою на сервер у Discord, далі «Копіювати ID сервера».</p>
+              </div>
+              <div>
+                <label htmlFor="client-id" className="label">
+                  Client ID
+                </label>
+                <input
+                  id="client-id"
+                  type="text"
+                  inputMode="numeric"
+                  value={discordClientId}
+                  onChange={(e) => setDiscordClientId(e.target.value)}
+                  disabled={!isLeader}
+                  placeholder="132485918273645281"
+                  className="field font-mono"
+                />
+                <p className="hint">Developer Portal, розділ OAuth2.</p>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Discord Client ID:
+              <label htmlFor="client-secret" className="label">
+                Client Secret
               </label>
               <input
-                type="text"
-                value={discordClientId}
-                onChange={(e) => setDiscordClientId(e.target.value)}
-                disabled={!isLeader}
-                placeholder="напр. 132485918273645281"
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 disabled:opacity-60"
-              />
-              <div className="text-[10px] text-slate-500 mt-1">
-                З Discord Developer Portal
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Discord Client Secret:
-              </label>
-              <input
+                id="client-secret"
                 type="password"
+                autoComplete="new-password"
                 value={discordClientSecret}
                 onChange={(e) => setDiscordClientSecret(e.target.value)}
                 disabled={!isLeader}
-                placeholder={settings?.discordClientSecretSet ? '•••••••• збережено (залиште порожнім, щоб не змінювати)' : 'Вставте Client Secret'}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 disabled:opacity-60"
+                placeholder={
+                  settings?.discordClientSecretSet ? 'Збережено. Залиште порожнім, щоб не змінювати' : 'Вставте Client Secret'
+                }
+                className="field font-mono"
               />
-              <div className="text-[10px] text-slate-500 mt-1">
-                Зберігається суворо на сервері. Надійніше — змінна середовища DISCORD_CLIENT_SECRET на хостингу.
+              <p className="hint">
+                Сервер ніколи не показує збережений секрет. Надійніше задати його змінною DISCORD_CLIENT_SECRET на
+                хостингу.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-xl border border-[#1b2740] bg-[#070d1a] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-slate-200">Redirect URI для Developer Portal</div>
+                <div className="mt-1 select-all break-all font-mono text-xs text-amber-300">{redirectUri}</div>
               </div>
+              <button type="button" onClick={handleCopyRedirect} className="btn btn-secondary shrink-0">
+                {copiedRedirect ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    Скопійовано
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    Копіювати
+                  </>
+                )}
+              </button>
             </div>
           </div>
+        </SettingsSection>
 
-          {/* Exact Redirect URI info for Discord Portal */}
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="space-y-0.5">
-              <span className="font-semibold text-slate-300">
-                Обов'язковий Redirect URI для Discord Developer Portal:
-              </span>
-              <div className="text-[11px] font-mono text-indigo-300 select-all">{redirectUri}</div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleCopyRedirect}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center justify-center gap-1.5 shrink-0 transition-colors"
-            >
-              {copiedRedirect ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">Скопійовано!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Скопіювати URI</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Submit Action (Leader only) */}
         {isLeader && (
-          <div className="flex items-center justify-between p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20">
-            <div className="text-xs text-slate-300">
-              💡 Збереження відкриє діалог <strong>2-етапного підтвердження безпеки</strong> з перевіркою відмінностей (Diff) та введенням коду.
-            </div>
-
-            <button
-              type="submit"
-              className="px-6 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-2 transition-all shadow-md shadow-amber-500/20 cursor-pointer shrink-0"
-            >
-              <Save className="w-4 h-4" />
-              <span>Зберегти зміни ролей (із підтвердженням)</span>
+          <div className="sticky bottom-4 z-10 flex flex-col gap-3 rounded-2xl border border-[#27355a] bg-[#0b1322]/95 p-4 shadow-2xl shadow-black/40 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-400">
+              Перед збереженням ви побачите, що саме зміниться, і підтвердите дію.
+            </p>
+            <button type="submit" className="btn btn-primary">
+              <Save className="h-4 w-4" />
+              Зберегти зміни
             </button>
           </div>
         )}
       </form>
 
-            {/* Блок зміни пароля Куратора */}
       {isLeader && (
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-amber-400" />
-              <h3 className="text-sm font-bold text-white">Безпека: Зміна пароля Куратора</h3>
-            </div>
-            <span className="text-[11px] text-slate-500 font-mono">Curator Access</span>
-          </div>
-          <p className="text-xs text-slate-400">
-            Використовуйте цей розділ для зміни пароля Куратора (наприклад, під час зміни лідерів).
-          </p>
-          <form onSubmit={handleUpdatePassword} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Поточний пароль:</label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={currentPass}
-                onChange={(e) => setCurrentPass(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Новий пароль:</label>
-              <input
-                type="password"
-                required
-                placeholder="Мінімум 4 символи"
-                value={newPass}
-                onChange={(e) => setNewPass(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={passSubmitting}
-              className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
-            >
-              {passSubmitting ? "Збереження..." : "Оновити пароль"}
-            </button>
-          </form>
-          {passSuccess && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold">
-              ✅ {passSuccess}
-            </div>
-          )}
-          {passError && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-semibold">
-              ❌ {passError}
-            </div>
-          )}
+        <div className="mt-5">
+          <SettingsSection
+            title="Пароль куратора"
+            description="Для резервного входу, коли Discord недоступний. Змініть його, якщо змінився склад керівництва."
+          >
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="cur-pass" className="label">
+                    Поточний пароль
+                  </label>
+                  <input
+                    id="cur-pass"
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    value={currentPass}
+                    onChange={(e) => setCurrentPass(e.target.value)}
+                    className="field font-mono"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="new-pass" className="label">
+                    Новий пароль
+                  </label>
+                  <input
+                    id="new-pass"
+                    type="password"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    placeholder="Щонайменше 8 символів"
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                    className="field font-mono"
+                  />
+                </div>
+              </div>
+
+              {passSuccess && (
+                <div role="status" className="flex items-center gap-2 text-sm text-emerald-300">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {passSuccess}
+                </div>
+              )}
+              {passError && (
+                <div role="alert" className="flex items-center gap-2 text-sm text-red-300">
+                  <AlertTriangle className="h-4 w-4" />
+                  {passError}
+                </div>
+              )}
+
+              <button type="submit" disabled={passSubmitting} className="btn btn-secondary">
+                {passSubmitting ? 'Збереження…' : 'Змінити пароль'}
+              </button>
+            </form>
+          </SettingsSection>
         </div>
       )}
 
-      {/* Role Audit History Log */}
-      <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <History className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-bold text-white">Журнал безпеки: Історія перейменування ролей</h3>
-          </div>
-          <span className="text-[10px] text-slate-500 font-mono">Audit Log</span>
-        </div>
-
-        {(!settings?.roleAuditLogs || settings.roleAuditLogs.length === 0) ? (
-          <div className="p-6 rounded-xl bg-slate-950 text-center text-xs text-slate-500">
-            Змін ролей ще не зафіксовано.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {settings.roleAuditLogs.slice(0, 5).map((log: RoleAuditLogEntry) => (
-              <div
-                key={log.id}
-                className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-              >
-                <div>
-                  <div className="font-semibold text-slate-200 flex items-center gap-2">
-                    <span className="text-amber-400">🛡️ {log.actorName}</span>
-                    <span className="text-slate-500">·</span>
-                    <span className="text-[11px] text-slate-400">{log.reason || 'Оновлення ролей'}</span>
+      <div className="mt-5">
+        <SettingsSection title="Журнал змін" description="Останні зміни посад і ролей: хто, коли та навіщо.">
+          {!settings?.roleAuditLogs || settings.roleAuditLogs.length === 0 ? (
+            <p className="py-2 text-sm text-slate-500">Змін ще не було.</p>
+          ) : (
+            <ul className="-my-3 divide-y divide-[#142038]">
+              {settings.roleAuditLogs.slice(0, 6).map((log: RoleAuditLogEntry) => (
+                <li key={log.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
+                  <div className="min-w-0 text-sm">
+                    <span className="font-medium text-white">{log.actorName}</span>
+                    <span className="text-slate-400">
+                      {' '}
+                      змінив посаду «<span className="text-slate-500 line-through">{log.oldTitle}</span>» на «
+                      <span className="text-slate-200">{log.newTitle}</span>»
+                    </span>
+                    {log.reason && <div className="mt-0.5 text-xs text-slate-500">Причина: {log.reason}</div>}
                   </div>
-                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                    Було: <span className="line-through">{log.oldTitle}</span> ➔ Стало: <span className="text-white font-bold">{log.newTitle}</span>
-                  </div>
-                </div>
-
-                <div className="text-[10px] text-slate-500 font-mono shrink-0">
-                  {new Date(log.timestamp).toLocaleDateString('uk-UA')} {new Date(log.timestamp).toLocaleTimeString('uk-UA')}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                  <time className="num shrink-0 text-xs text-slate-500" dateTime={log.timestamp}>
+                    {new Date(log.timestamp).toLocaleString('uk-UA', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </time>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SettingsSection>
       </div>
 
       {/* Confirmation Safeguard Modal */}

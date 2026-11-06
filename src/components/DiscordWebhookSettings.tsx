@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { AppSettings, DiscordLogEntry, User } from '../types';
 import { api } from '../services/api';
+import { PageHeader } from './ui';
 import { Lock } from 'lucide-react';
 
 interface DiscordWebhookSettingsProps {
@@ -127,28 +128,16 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
   };
 
   return (
-    <div className="space-y-8">
-      {/* Top Header */}
-      <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800">
-        <div className="flex items-center gap-2 text-xs font-semibold text-amber-400 uppercase tracking-wider mb-1">
-          <Radio className="w-3.5 h-3.5" />
-          Інтеграція з Discord Forum через Webhook
-        </div>
-        <h1 className="text-xl font-bold text-white">
-          Автоматична публікація результатів та сповіщень кадетів
-        </h1>
-        <p className="text-xs text-slate-400 mt-1 max-w-3xl leading-relaxed">
-          Система не потребує складних ботів або сторонніх серверів: публікація здійснюється через офіційний Discord Webhook безпосередньо у ваш Forum-канал інструкторів. Інструктор натискає «Зараховано», і кадет миттєво отримує оновлення в гілку.
-        </p>
-      </div>
+    <div>
+      <PageHeader
+        title="Discord-вебхук"
+        description="Сюди надходять звіти про складені іспити. Інструктор виносить вердикт, і кадет бачить його в тій самій гілці."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start min-w-0">
         {/* Left Column: Settings Form (6 cols) */}
-        <div className="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-6 min-w-0 w-full">
-          <h2 className="text-base font-bold text-white flex items-center gap-2 pb-3 border-b border-slate-800">
-            <Radio className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>Параметри вебхука та фракції</span>
-          </h2>
+        <div className="lg:col-span-6 panel p-5 sm:p-6 space-y-6 min-w-0 w-full">
+          <h2 className="text-base font-semibold text-white">Підключення</h2>
 
           {!isLeader && (
             <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-3">
@@ -166,7 +155,7 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
 
           <form onSubmit={handleSave} className="space-y-4 min-w-0">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="label">
                 Discord Webhook URL (Forum або текстовий канал)
               </label>
               <input
@@ -175,22 +164,22 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 value={webhookUrl}
                 onChange={(e) => setWebhookUrl(e.target.value)}
                 disabled={!isLeader}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-amber-300 font-mono placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors break-all disabled:opacity-60 disabled:cursor-not-allowed"
+                className="field font-mono"
               />
               <span className="text-[11px] text-slate-500 mt-1 block">
-                Якщо залишити порожнім, система зберігатиме всі повідомлення у локальний Discord-симулятор.
+                Без вебхука звіти нікуди не надсилаються.
               </span>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                Шаблон назви теми у Forum-каналі Discord
+              <label className="label">
+                Назва теми у Forum-каналі
               </label>
               <input
                 type="text"
                 value={threadFormat}
                 onChange={(e) => setThreadFormat(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                className="field font-mono"
               />
               <div className="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2">
                 <span>Змінні: <code>{'{test}'}</code>, <code>{'{cadet}'}</code>, <code>{'{static}'}</code></span>
@@ -199,27 +188,27 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Назва академії / підрозділу
+                <label className="label">
+                  Назва академії
                 </label>
                 <input
                   type="text"
                   value={academyName}
                   onChange={(e) => setAcademyName(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="field"
                   placeholder="Поліцейська Академія"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Тег фракції (підзаголовок)
+                <label className="label">
+                  Підзаголовок (тег фракції)
                 </label>
                 <input
                   type="text"
                   value={factionTag}
                   onChange={(e) => setFactionTag(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                  className="field"
                   placeholder="НПУ / СБУ / Шериф"
                 />
               </div>
@@ -228,7 +217,7 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
             {saveSuccess && (
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Налаштування успішно збережено!</span>
+                <span>Збережено.</span>
               </div>
             )}
 
@@ -259,7 +248,7 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                     : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-60'
                 }`}
               >
-                {saving ? 'Збереження...' : isLeader ? 'Зберегти налаштування' : 'Тільки для Лідера (Заблоковано)'}
+                {saving ? 'Збереження…' : isLeader ? 'Зберегти' : 'Тільки для керівника'}
               </button>
 
               <button
@@ -269,17 +258,18 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>{testing ? 'Надсилання...' : 'Перевірити інтеграцію'}</span>
+                <span>{testing ? 'Надсилання…' : 'Надіслати тест'}</span>
               </button>
             </div>
           </form>
 
           {/* Setup Guide */}
-          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
-            <div className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-              <Info className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>Як створити Forum-канал і вебхук за 2 хвилини:</span>
-            </div>
+          <details className="group rounded-xl border border-[#1b2740] bg-[#070d1a] p-4">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-slate-300 hover:text-white">
+              <Info className="h-4 w-4 shrink-0 text-amber-400" />
+              <span>Як створити вебхук</span>
+            </summary>
+            <div className="mt-3 space-y-3">
             <ol className="text-xs text-slate-400 space-y-2 list-decimal list-inside leading-relaxed">
               <li>
                 У вашому Discord-сервері натисніть <strong>«+»</strong> біля списку каналів та оберіть тип <strong>Forum (Форум)</strong>.
@@ -294,7 +284,8 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 Вставте посилання у поле вгорі. Кожен складений іспит автоматично створить нову тему у форумі з повним звітом для інструкторів!
               </li>
             </ol>
-          </div>
+            </div>
+          </details>
         </div>
 
         {/* Right Column: Live Discord Post Mockup & Simulator (6 cols) */}
@@ -307,7 +298,7 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
                 <span className="text-[#949ba4] shrink-0">#</span>
                 <span className="truncate">екзамени-кадетів (Discord Forum)</span>
               </div>
-              <span className="text-[10px] text-[#949ba4] font-normal shrink-0">Попередній перегляд</span>
+              <span className="text-[10px] text-[#949ba4] font-normal shrink-0">Приклад публікації</span>
             </div>
 
             {/* Post Content */}
@@ -401,10 +392,10 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
           </div>
 
           {/* Recent Discord Dispatches Log */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 min-w-0 w-full">
+          <div className="panel p-5 space-y-3 min-w-0 w-full">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                Журнал надісланих вебхуків ({logs.length})
+              <h3 className="text-base font-semibold text-white">
+                Журнал надсилань ({logs.length})
               </h3>
               <button
                 onClick={loadLogs}
@@ -418,7 +409,7 @@ export const DiscordWebhookSettings: React.FC<DiscordWebhookSettingsProps> = ({
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
               {logs.length === 0 ? (
                 <div className="text-center py-4 text-xs text-slate-500">
-                  Журнал надсилань порожній.
+                  Надсилань ще не було.
                 </div>
               ) : (
                 logs.map((log) => (

@@ -15,6 +15,7 @@ interface DiscordAuthModalProps {
   settings: AppSettings | null;
   onUserChanged: (user: User) => void;
   onAuthError?: (error: string) => void;
+  initialTab?: 'oauth' | 'backup';
 }
 
 export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
@@ -24,8 +25,14 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
   settings,
   onUserChanged,
   onAuthError,
+  initialTab = 'oauth',
 }) => {
-  const [activeTab, setActiveTab] = useState<'oauth' | 'backup'>('oauth');
+  const [activeTab, setActiveTab] = useState<'oauth' | 'backup'>(initialTab);
+
+  // Щоразу, коли вікно відкривають, показуємо потрібну вкладку
+  useEffect(() => {
+    if (isOpen) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
 
   // OAuth states
   const [oauthLoading, setOauthLoading] = useState(false);
@@ -217,7 +224,7 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="label">
                 Логін Шерифа:
               </label>
               <input
@@ -226,12 +233,12 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
                 value={loginUsername}
                 onChange={(e) => setLoginUsername(e.target.value)}
                 required
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                className="field"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="label">
                 Захисний пароль / PIN:
               </label>
               <input
@@ -240,7 +247,7 @@ export const DiscordAuthModal: React.FC<DiscordAuthModalProps> = ({
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
                 required
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 font-mono"
+                className="field font-mono"
               />
             </div>
 

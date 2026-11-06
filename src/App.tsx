@@ -4,7 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Header } from './components/Header';
+import { Menu } from 'lucide-react';
+import { Sidebar } from './components/Sidebar';
+import { SignInScreen } from './components/SignInScreen';
 import { ResultsTable } from './components/ResultsTable';
 import { InstructorPanel } from './components/InstructorPanel';
 import { LeaderTestsAdmin } from './components/LeaderTestsAdmin';
@@ -15,8 +17,17 @@ import { InstructorAccountsModal } from './components/InstructorAccountsModal';
 import { ExamTaker } from './components/ExamTaker';
 import { RoleManager } from './components/RoleManager';
 import { DiscordAuthModal } from './components/DiscordAuthModal';
+import { BrandMark } from './components/ui';
 import { User, AppSettings, TestConfig, ExamResult } from './types';
 import { api } from './services/api';
+
+const PAGE_TITLES: Record<string, string> = {
+  results: 'Результати',
+  generator: 'Видати посилання',
+  tests: 'Банк тестів',
+  discord: 'Discord-вебхук',
+  roles: 'Ролі та доступ',
+};
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -27,17 +38,19 @@ export default function App() {
 
   const [currentTab, setCurrentTab] = useState<string>('results');
   const [loading, setLoading] = useState<boolean>(true);
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   const [globalAuthError, setGlobalAuthError] = useState<string | null>(null);
 
-  // Active Modals & Views
+  // Активні модальні вікна та режими
   const [cadetExamToken, setCadetExamToken] = useState<string | null>(null);
   const [reviewResultId, setReviewResultId] = useState<string | null>(null);
   const [showCadetLookup, setShowCadetLookup] = useState<boolean>(false);
   const [showInstructorsModal, setShowInstructorsModal] = useState<boolean>(false);
   const [showDiscordAuth, setShowDiscordAuth] = useState<boolean>(false);
+  const [authTab, setAuthTab] = useState<'oauth' | 'backup'>('oauth');
 
-  // Check URL hash / query on initial load or change
+  // Токен іспиту або результат у хеші / параметрах адреси
   useEffect(() => {
     const handleHash = () => {
       const hash = window.location.hash || '';
@@ -71,7 +84,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
- const loadAllData = async () => {
+  const loadAllData = async () => {
     try {
       setLoading(true);
       // 1) Спершу сесія: вона публічна й повертає користувача (за cookie) та налаштування без секретів
@@ -81,7 +94,7 @@ export default function App() {
       setAllUsers(sessionData?.allUsers || []);
       setSettings(sessionData?.settings || null);
 
-      // 2) Тести та результати — лише для авторизованих інструкторів / Шерифа (інакше сервер відповість 401/403)
+      // 2) Тести та результати — лише для авторизованого персоналу (інакше сервер відповість 401/403)
       const isStaffUser = user && (user.role === 'leader' || user.role === 'instructor');
       if (isStaffUser) {
         const [testsData, resultsData] = await Promise.all([
@@ -118,17 +131,7 @@ export default function App() {
     setCurrentUser(null);
     setTests([]);
     setResults([]);
-    setShowDiscordAuth(true);
-  };
-
-  const handleSwitchUser = async (userId: string) => {
-    try {
-      const res = await api.switchUser(userId);
-      setCurrentUser(res.user);
-      loadAllData();
-    } catch (e) {
-      console.error(e);
-    }
+    setCurrentTab('results');
   };
 
   const handleOpenExamAsCadet = (token: string) => {
@@ -143,206 +146,122 @@ export default function App() {
     setCurrentTab('results');
   };
 
-  const handleSelectTab = (tab: string) => {
-    if (tab === 'cadets') {
-      setShowCadetLookup(true);
-    } else {
-      setCurrentTab(tab);
-    }
+  const openSignIn = (tab: 'oauth' | 'backup') => {
+    setAuthTab(tab);
+    setShowDiscordAuth(true);
   };
 
-  // If Cadet Mode is active, render isolated ExamTaker view
+  // Режим кадета: окремий екран складання іспиту
   if (cadetExamToken) {
     return <ExamTaker token={cadetExamToken} onExit={handleExitCadetExam} />;
   }
 
-  const isStaff = currentUser && (currentUser.role === 'leader' || currentUser.role === 'instructor');
-  
-  if (!isStaff && !loading) {
+  const isStaff = Boolean(currentUser && (currentUser.role === 'leader' || currentUser.role === 'instructor'));
+  const isLeader = currentUser?.role === 'leader';
+
+  const authModal = (
+    <DiscordAuthModal
+      isOpen={showDiscordAuth}
+      initialTab={authTab}
+      onClose={() => setShowDiscordAuth(false)}
+      currentUser={currentUser}
+      settings={settings}
+      onAuthError={(msg) => setGlobalAuthError(msg)}
+      onUserChanged={(u) => {
+        setGlobalAuthError(null);
+        setCurrentUser(u);
+        loadAllData();
+      }}
+    />
+  );
+
+  // Поки сесія завантажується
+  if (loading && !currentUser) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full p-8 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl text-center space-y-5">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
-            <span className="text-3xl">🛡️</span>
-          </div>
-
-          <div>
-            <h1 className="text-xl font-bold text-white">
-              {settings?.academyName || 'Академія Кадетів'}
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              {settings?.factionTag || 'Службовий портал викладацького корпусу'}
-            </p>
-          </div>
-
-          {globalAuthError && (
-            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs text-left flex items-start gap-3 animate-in fade-in">
-              <span className="text-base leading-none shrink-0">⛔</span>
-              <div>
-                <div className="font-bold text-red-200">Доступ заборонено</div>
-                <div className="text-[11px] text-red-300/90 mt-0.5 leading-relaxed">
-                  {globalAuthError}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800/80 text-xs text-slate-400 text-left space-y-2">
-            <div className="font-semibold text-amber-300 flex items-center gap-1.5">
-              <span>🔒</span> Закрита службова зона
-            </div>
-            <p className="leading-relaxed">
-              Доступ до кабінету дозволено виключно <strong>Інструкторам Академії</strong> та <strong>Шерифу / Куратору</strong>.
-            </p>
-            <p className="text-[11px] text-slate-500">
-              Кадети складають іспити за персональними посиланнями від інструкторів. Власний кабінет для кадетів не передбачено регламентом.
-            </p>
-          </div>
-
-          <button
-            onClick={() => setShowDiscordAuth(true)}
-            className="w-full py-3 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#5865F2]/20 transition-all cursor-pointer"
-          >
-            <span>Вхід для Інструкторів та Шерифа</span>
-          </button>
+      <div className="min-h-screen flex items-center justify-center bg-[#060b16]">
+        <div className="flex items-center gap-3 text-sm text-slate-400">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+          Завантаження…
         </div>
-
-        <DiscordAuthModal
-          isOpen={showDiscordAuth}
-          onClose={() => setShowDiscordAuth(false)}
-          currentUser={currentUser}
-          settings={settings}
-          onAuthError={(msg) => setGlobalAuthError(msg)}
-          onUserChanged={(u) => {
-            setGlobalAuthError(null);
-            setCurrentUser(u);
-            loadAllData();
-          }}
-        />
       </div>
     );
   }
 
+  // Екран входу
+  if (!isStaff) {
+    return (
+      <>
+        <SignInScreen settings={settings} error={globalAuthError} onSignIn={openSignIn} />
+        {authModal}
+      </>
+    );
+  }
+
+  // Адмін-розділи доступні лише керівнику
+  const tab = !isLeader && (currentTab === 'discord' || currentTab === 'roles') ? 'results' : currentTab;
+  const pendingCount = results.filter((r) => r.status === 'pending_review').length;
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased">
-      <Header
-        currentTab={currentTab}
-        onSelectTab={handleSelectTab}
+    <div className="min-h-screen bg-[#060b16] text-slate-100 lg:flex">
+      <Sidebar
+        currentTab={tab}
+        onSelectTab={setCurrentTab}
         currentUser={currentUser}
-        allUsers={allUsers}
-        onSwitchUser={handleSwitchUser}
         settings={settings}
-        onOpenInstructorsModal={() => setShowInstructorsModal(true)}
-        onOpenDiscordAuth={() => setShowDiscordAuth(true)}
+        pendingCount={pendingCount}
+        onOpenCadetLookup={() => setShowCadetLookup(true)}
+        onOpenInstructors={() => setShowInstructorsModal(true)}
         onLogout={handleLogout}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
       />
 
-      {/* Adaptive Mobile/Tablet Tab Bar */}
-      <div className="lg:hidden bg-slate-900/90 border-b border-slate-800 px-3 py-2 overflow-x-auto sticky top-16 z-30">
-        <div className="flex items-center gap-1.5 min-w-max text-xs">
-          <button
-            onClick={() => setCurrentTab('results')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors ${
-              currentTab === 'results' ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-800'
-            }`}
-          >
-            Результати
+      <div className="min-w-0 flex-1">
+        {/* Верхня смуга для телефонів і планшетів */}
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-[#1b2740] bg-[#080f1d]/95 px-4 backdrop-blur lg:hidden">
+          <button onClick={() => setMenuOpen(true)} className="btn btn-ghost !p-2" aria-label="Відкрити меню">
+            <Menu className="h-5 w-5" />
           </button>
-          <button
-            onClick={() => setCurrentTab('generator')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors ${
-              currentTab === 'generator' ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-800'
-            }`}
-          >
-            Видати посилання
-          </button>
-          <button
-            onClick={() => setCurrentTab('tests')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors ${
-              currentTab === 'tests' ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-800'
-            }`}
-          >
-            Банк тестів
-          </button>
-          <button
-            onClick={() => setCurrentTab('discord')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors ${
-              currentTab === 'discord' ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-800'
-            }`}
-          >
-            Discord Webhook
-          </button>
-          <button
-            onClick={() => setCurrentTab('roles')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors ${
-              currentTab === 'roles' ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-800'
-            }`}
-          >
-            Ролі та Доступ
-          </button>
-          <button
-            onClick={() => setShowCadetLookup(true)}
-            className="px-3 py-1.5 rounded-lg whitespace-nowrap font-medium text-slate-300 hover:bg-slate-800 transition-colors"
-          >
-            Історія кадета
-          </button>
-        </div>
+          <BrandMark size={28} />
+          <span className="truncate text-sm font-semibold text-white">{PAGE_TITLES[tab] || 'Кабінет'}</span>
+        </header>
+
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-8 sm:py-10">
+          {loading ? (
+            <div className="flex items-center justify-center gap-3 py-24 text-sm text-slate-400">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+              Оновлення даних…
+            </div>
+          ) : (
+            <>
+              {tab === 'results' && (
+                <ResultsTable
+                  results={results}
+                  tests={tests}
+                  onSelectResult={(id) => setReviewResultId(id)}
+                  onRefresh={loadAllData}
+                />
+              )}
+
+              {tab === 'generator' && <InstructorPanel tests={tests} onOpenExamAsCadet={handleOpenExamAsCadet} />}
+
+              {tab === 'tests' && (
+                <LeaderTestsAdmin tests={tests} currentUser={currentUser} onRefreshTests={loadAllData} />
+              )}
+
+              {tab === 'discord' && (
+                <DiscordWebhookSettings settings={settings} currentUser={currentUser} onRefreshSettings={loadAllData} />
+              )}
+
+              {tab === 'roles' && (
+                <RoleManager settings={settings} currentUser={currentUser} onRefreshSettings={loadAllData} />
+              )}
+            </>
+          )}
+        </main>
       </div>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 min-w-0 overflow-x-hidden">
-        {loading && (
-          <div className="py-24 text-center space-y-3">
-            <div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
-            <div className="text-xs text-slate-400 font-medium">Завантаження платформи тестування...</div>
-          </div>
-        )}
-
-        {!loading && (
-          <>
-            {currentTab === 'results' && (
-              <ResultsTable
-                results={results}
-                tests={tests}
-                onSelectResult={(id) => setReviewResultId(id)}
-                onRefresh={loadAllData}
-              />
-            )}
-
-            {currentTab === 'generator' && (
-              <InstructorPanel
-                tests={tests}
-                onOpenExamAsCadet={handleOpenExamAsCadet}
-              />
-            )}
-
-            {currentTab === 'tests' && (
-              <LeaderTestsAdmin
-                tests={tests}
-                currentUser={currentUser}
-                onRefreshTests={loadAllData}
-              />
-            )}
-
-            {currentTab === 'discord' && (
-              <DiscordWebhookSettings
-                settings={settings}
-                currentUser={currentUser}
-                onRefreshSettings={loadAllData}
-              />
-            )}
-
-            {currentTab === 'roles' && (
-              <RoleManager
-                settings={settings}
-                currentUser={currentUser}
-                onRefreshSettings={loadAllData}
-              />
-            )}
-          </>
-        )}
-      </main>
-
-      {/* Review Modal for Instructors */}
+      {/* Перевірка роботи інструктором */}
       {reviewResultId && (
         <ResultReviewModal
           resultId={reviewResultId}
@@ -356,15 +275,12 @@ export default function App() {
         />
       )}
 
-      {/* Cadet History Search Modal */}
+      {/* Історія кадета */}
       {showCadetLookup && (
-        <CadetLookupModal
-          onClose={() => setShowCadetLookup(false)}
-          onSelectResult={(id) => setReviewResultId(id)}
-        />
+        <CadetLookupModal onClose={() => setShowCadetLookup(false)} onSelectResult={(id) => setReviewResultId(id)} />
       )}
 
-      {/* Instructor Accounts Modal */}
+      {/* Інструктори */}
       {showInstructorsModal && (
         <InstructorAccountsModal
           instructors={allUsers}
@@ -374,19 +290,7 @@ export default function App() {
         />
       )}
 
-      {/* Discord Role Authentication Modal */}
-      <DiscordAuthModal
-        isOpen={showDiscordAuth}
-        onClose={() => setShowDiscordAuth(false)}
-        currentUser={currentUser}
-        settings={settings}
-        onAuthError={(msg) => setGlobalAuthError(msg)}
-        onUserChanged={(u) => {
-          setGlobalAuthError(null);
-          setCurrentUser(u);
-          loadAllData();
-        }}
-      />
+      {authModal}
     </div>
   );
 }

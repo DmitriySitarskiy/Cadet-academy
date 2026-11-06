@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Copy, Check, ExternalLink, AlertTriangle, Clock, Award, ShieldAlert, Sparkles, RefreshCw } from 'lucide-react';
+import { Send, Copy, Check, ExternalLink, AlertTriangle, Clock, RefreshCw, Link2, X } from 'lucide-react';
 import { TestConfig, ExamToken } from '../types';
 import { api } from '../services/api';
+import { PageHeader, EmptyState, timeAgo } from './ui';
 
 interface InstructorPanelProps {
   tests: TestConfig[];
   onOpenExamAsCadet: (token: string) => void;
 }
+
+const TOKEN_STATUS: Record<string, { label: string; dot: string; text: string }> = {
+  pending: { label: 'Очікує кадета', dot: 'bg-amber-400', text: 'text-amber-300' },
+  in_progress: { label: 'Складає зараз', dot: 'bg-sky-400', text: 'text-sky-300' },
+  submitted: { label: 'Здано', dot: 'bg-emerald-400', text: 'text-emerald-400' },
+  expired: { label: 'Прострочено', dot: 'bg-slate-600', text: 'text-slate-500' },
+};
 
 export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenExamAsCadet }) => {
   const [cadetNickname, setCadetNickname] = useState('');
@@ -22,8 +30,7 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
     discordCopyTemplate: string;
   } | null>(null);
 
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [copiedTemplate, setCopiedTemplate] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null); // 'template' | 'link' | token id
   const [tokens, setTokens] = useState<ExamToken[]>([]);
   const [refreshingTokens, setRefreshingTokens] = useState(false);
 
@@ -36,8 +43,7 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
   const loadTokens = async () => {
     try {
       setRefreshingTokens(true);
-      const list = await api.getTokens();
-      setTokens(list);
+      setTokens(await api.getTokens());
     } catch (e) {
       console.error(e);
     } finally {
@@ -57,7 +63,7 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
     setGeneratedResult(null);
 
     if (!cadetNickname.trim() || !cadetStatic.trim() || !selectedTestId) {
-      setError('Заповніть нікнейм, статік та оберіть іспит');
+      setError('Заповніть нікнейм, статік і виберіть іспит.');
       return;
     }
 
@@ -70,347 +76,258 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
         testId: selectedTestId,
       });
       setGeneratedResult(data);
+      // Форма очищається, щоб одразу видавати наступне посилання
+      setCadetNickname('');
+      setCadetStatic('');
+      setCadetDiscord('');
       loadTokens();
     } catch (err: any) {
-      setError(err.message || 'Помилка генерації посилання');
+      setError(err.message || 'Не вдалося створити посилання.');
     } finally {
       setLoading(false);
     }
   };
 
-  const copyToClipboard = async (text: string, isTemplate: boolean) => {
+  const copyText = async (text: string, key: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      if (isTemplate) {
-        setCopiedTemplate(true);
-        setTimeout(() => setCopiedTemplate(false), 2000);
-      } else {
-        setCopiedLink(true);
-        setTimeout(() => setCopiedLink(false), 2000);
-      }
+      setCopied(key);
+      setTimeout(() => setCopied((cur) => (cur === key ? null : cur)), 2000);
     } catch (err) {
       console.error('Clipboard copy error', err);
     }
   };
 
-  const fillQuickDemo = (name: string, staticId: string, discord: string) => {
-    setCadetNickname(name);
-    setCadetStatic(staticId);
-    setCadetDiscord(discord);
-  };
+  const linkFor = (token: string) => `${window.location.origin}/#exam-${token}`;
 
   return (
-    <div className="space-y-8">
-      {/* Top Description Banner */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800/80 border border-slate-800 relative overflow-hidden">
-        <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 text-xs font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2.5 py-1 rounded-md mb-3">
-            <Sparkles className="w-3.5 h-3.5" />
-            Автоматизована видача іспитів
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mb-2">
-            Генерація персонального одноразового посилання
-          </h1>
-          <p className="text-sm text-slate-400 leading-relaxed">
-            Коли кадет пише в Discord про готовність скласти іспит, введіть його дані нижче. Система перевірить ліміт спроб і паузу між перездачами, збереже правильні відповіді виключно на сервері та створить захищений токен.
-          </p>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title="Видати посилання"
+        description="Створіть одноразове посилання для кадета й надішліть його в Discord. Посилання діє 24 години."
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start min-w-0">
-        {/* Left Column: Generator Form (7 cols) */}
-        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm min-w-0 w-full">
-          <form onSubmit={handleGenerate} className="space-y-6 min-w-0">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <h2 className="text-base font-semibold text-white flex items-center gap-2">
-                <Send className="w-4 h-4 text-amber-400" />
-                Дані кадета та вибір тесту
-              </h2>
-              <div className="text-xs text-slate-400">
-                Швидкий ввід:
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        {/* Ліва колонка: результат і форма */}
+        <div className="min-w-0 space-y-5">
+          {generatedResult && (
+            <section className="rounded-2xl border border-amber-400/30 bg-amber-400/[0.04] p-5 sm:p-6" aria-live="polite">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 text-base font-semibold text-white">
+                    <Check className="h-4 w-4 text-emerald-400" />
+                    Посилання для {generatedResult.token.cadetNickname} готове
+                  </div>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Скопіюйте повідомлення й вставте його в канал іспитів у Discord.
+                  </p>
+                </div>
                 <button
-                  type="button"
-                  onClick={() => fillQuickDemo('Roman_Danyliuk', '#19482', 'danyliuk_cadet')}
-                  className="ml-2 text-amber-400 hover:text-amber-300 underline font-mono"
+                  onClick={() => setGeneratedResult(null)}
+                  className="btn btn-ghost !p-1.5"
+                  aria-label="Закрити"
                 >
-                  Кадет Данилюк
+                  <X className="h-4 w-4" />
                 </button>
               </div>
-            </div>
+
+              <pre className="mt-4 max-h-52 overflow-y-auto whitespace-pre-wrap break-all rounded-xl border border-[#1b2740] bg-[#070d1a] p-4 font-sans text-sm leading-relaxed text-slate-300">
+                {generatedResult.discordCopyTemplate}
+              </pre>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => copyText(generatedResult.discordCopyTemplate, 'template')}
+                  className="btn btn-primary"
+                >
+                  {copied === 'template' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copied === 'template' ? 'Скопійовано' : 'Копіювати для Discord'}
+                </button>
+                <button onClick={() => copyText(generatedResult.examLink, 'link')} className="btn btn-secondary">
+                  {copied === 'link' ? <Check className="h-4 w-4 text-emerald-400" /> : <Link2 className="h-4 w-4" />}
+                  {copied === 'link' ? 'Скопійовано' : 'Тільки посилання'}
+                </button>
+                <button
+                  onClick={() => onOpenExamAsCadet(generatedResult.token.token)}
+                  className="btn btn-ghost"
+                  title="Відкриє іспит і запустить таймер. Посилання вважатиметься початим."
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Пройти як кадет
+                </button>
+              </div>
+            </section>
+          )}
+
+          <form onSubmit={handleGenerate} className="panel space-y-5 p-5 sm:p-6">
+            <h2 className="text-base font-semibold text-white">Новий іспит для кадета</h2>
 
             {error && (
-              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-semibold text-red-200">Помилка видачі іспиту</div>
-                  <div className="text-xs text-red-300/90 mt-0.5 leading-relaxed">{error}</div>
-                </div>
+              <div role="alert" className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+                <div className="leading-relaxed text-red-200">{error}</div>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  Нікнейм кадета (Ім'я_Прізвище) <span className="text-amber-400">*</span>
+                <label htmlFor="cadet-nick" className="label">
+                  Нікнейм
                 </label>
                 <input
+                  id="cadet-nick"
                   type="text"
                   required
-                  placeholder="напр. Alex_Mason"
+                  autoComplete="off"
+                  placeholder="Alex_Mason"
                   value={cadetNickname}
                   onChange={(e) => setCadetNickname(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+                  className="field"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  Статік кадета (ID в штаті) <span className="text-amber-400">*</span>
+                <label htmlFor="cadet-static" className="label">
+                  Статік
                 </label>
                 <input
+                  id="cadet-static"
                   type="text"
                   required
-                  placeholder="напр. #14285"
+                  autoComplete="off"
+                  placeholder="#14285"
                   value={cadetStatic}
                   onChange={(e) => setCadetStatic(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors font-mono"
+                  className="field font-mono"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                Discord ID або тег кадета (для сповіщення у гілці)
+              <label htmlFor="cadet-discord" className="label">
+                Discord ID кадета <span className="font-normal text-slate-500">(необов'язково)</span>
               </label>
               <input
+                id="cadet-discord"
                 type="text"
-                placeholder="напр. 392817482910293847 або @alex_mason"
+                autoComplete="off"
+                placeholder="392817482910293847"
                 value={cadetDiscord}
                 onChange={(e) => setCadetDiscord(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors font-mono"
+                className="field font-mono"
               />
-              <span className="text-[11px] text-slate-500 mt-1 block">
-                Якщо вказати числовий Discord ID, кадет отримає пряме згадування &lt;@ID&gt; у каналі після завершення іспиту.
-              </span>
+              <p className="hint">З числовим ID кадет отримає згадування (@) у гілці, коли ви винесете вердикт.</p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                Оберіть дисципліну / іспит <span className="text-amber-400">*</span>
+              <label htmlFor="test-select" className="label">
+                Іспит
               </label>
               <select
+                id="test-select"
                 value={selectedTestId}
                 onChange={(e) => setSelectedTestId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"
+                className="field"
               >
                 {tests.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.title} ({t.category}) · {t.timeLimitMinutes} хв
+                    {t.title}
                   </option>
                 ))}
               </select>
+
+              {selectedTest && (
+                <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-400">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-slate-500" />
+                    <span className="num">{selectedTest.timeLimitMinutes}</span> хв
+                  </span>
+                  <span>
+                    прохідний бал <span className="num text-slate-200">{selectedTest.passingScorePercent}%</span>
+                  </span>
+                  <span>
+                    <span className="num text-slate-200">{selectedTest.randomQuestionCount}</span> питань з{' '}
+                    <span className="num">{selectedTest.questions.length}</span>
+                  </span>
+                  <span>
+                    <span className="num">{selectedTest.maxAttempts}</span> спроби, пауза{' '}
+                    <span className="num">{selectedTest.cooldownHours}</span> год
+                  </span>
+                </p>
+              )}
+
+              {tests.length === 0 && (
+                <p className="hint">У банку ще немає іспитів. Створіть перший у розділі «Банк тестів».</p>
+              )}
             </div>
 
-            {selectedTest && (
-              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-3">
-                <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                  Параметри обраного тесту
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                  <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                    <Clock className="w-4 h-4 text-amber-400 mx-auto mb-1" />
-                    <div className="text-xs font-bold text-white tabular-nums">{selectedTest.timeLimitMinutes} хв</div>
-                    <div className="text-[10px] text-slate-400">Ліміт часу</div>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                    <Award className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
-                    <div className="text-xs font-bold text-white tabular-nums">{selectedTest.passingScorePercent}%</div>
-                    <div className="text-[10px] text-slate-400">Прохідний бал</div>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                    <RefreshCw className="w-4 h-4 text-blue-400 mx-auto mb-1" />
-                    <div className="text-xs font-bold text-white tabular-nums">{selectedTest.maxAttempts} спроби</div>
-                    <div className="text-[10px] text-slate-400">Макс. спроб</div>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                    <ShieldAlert className="w-4 h-4 text-purple-400 mx-auto mb-1" />
-                    <div className="text-xs font-bold text-white tabular-nums">{selectedTest.cooldownHours} год</div>
-                    <div className="text-[10px] text-slate-400">Пауза перездачі</div>
-                  </div>
-                </div>
-                <div className="text-[11px] text-slate-400 italic">
-                  Вибірка: {selectedTest.randomQuestionCount} випадкових питань з банку ({selectedTest.questions.length} доступно). Порядок питань та відповідей перемішується для кожного кадета.
-                </div>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm transition-all shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <Send className="w-4 h-4" />
-              {loading ? 'Перевірка лімітів та генерація...' : 'Створити одноразове посилання'}
+            <button type="submit" disabled={loading || tests.length === 0} className="btn btn-primary w-full !py-3">
+              <Send className="h-4 w-4" />
+              {loading ? 'Створюємо…' : 'Створити посилання'}
             </button>
           </form>
-
-          {/* Result Card */}
-          {generatedResult && (
-            <div className="mt-6 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/30 space-y-4 animate-in fade-in duration-300 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Check className="w-4 h-4" />
-                  Посилання успішно згенеровано!
-                </span>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  Дійсне 24 години (1 спроба)
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Пряме посилання для кадета:
-                </label>
-                <div className="flex items-center gap-2 min-w-0">
-                  <input
-                    type="text"
-                    readOnly
-                    value={generatedResult.examLink}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-amber-300 font-mono select-all truncate"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(generatedResult.examLink, false)}
-                    className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-white font-medium flex items-center gap-1.5 transition-colors shrink-0"
-                  >
-                    {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copiedLink ? 'Скопійовано' : 'Копіювати'}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-slate-300">
-                    Готове повідомлення для надсилання в Discord:
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(generatedResult.discordCopyTemplate, true)}
-                    className="text-xs text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1 shrink-0"
-                  >
-                    {copiedTemplate ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copiedTemplate ? 'Скопійовано!' : 'Скопіювати для Discord'}
-                  </button>
-                </div>
-                <pre className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 text-[11px] text-slate-300 whitespace-pre-wrap font-sans leading-relaxed break-all max-h-48 overflow-y-auto">
-                  {generatedResult.discordCopyTemplate}
-                </pre>
-              </div>
-
-              <div className="pt-2 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => onOpenExamAsCadet(generatedResult.token.token)}
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs flex items-center justify-center gap-2 border border-slate-700 transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
-                  Відкрити іспит як кадет (Тестове проходження)
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Right Column: Recent Tokens & Live Status (5 cols) */}
-        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4 min-w-0 w-full">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div>
-              <h3 className="text-sm font-semibold text-white">Видані посилання</h3>
-              <p className="text-[11px] text-slate-400">Останні згенеровані токени</p>
-            </div>
+        {/* Права колонка: видані посилання */}
+        <aside className="panel min-w-0 p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-white">Видані посилання</h2>
             <button
               onClick={loadTokens}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="btn btn-ghost !p-1.5"
               title="Оновити список"
+              aria-label="Оновити список"
             >
-              <RefreshCw className={`w-4 h-4 ${refreshingTokens ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${refreshingTokens ? 'animate-spin' : ''}`} />
             </button>
           </div>
 
-          <div className="space-y-3 max-h-[540px] overflow-y-auto pr-1">
-            {tokens.length === 0 ? (
-              <div className="text-center py-8 text-xs text-slate-500">
-                Ще не видано жодного посилання.
-              </div>
-            ) : (
-              tokens.slice(0, 8).map((tok) => {
-                const isPending = tok.status === 'pending';
-                const isInProgress = tok.status === 'in_progress';
-                const isSubmitted = tok.status === 'submitted';
-                const isExpired = tok.status === 'expired';
-
+          {tokens.length === 0 ? (
+            <EmptyState
+              icon={<Link2 className="h-5 w-5" />}
+              title="Посилань ще немає"
+              text="Створіть перше, і воно з'явиться тут."
+            />
+          ) : (
+            <ul className="-mx-2 max-h-[34rem] divide-y divide-[#142038] overflow-y-auto">
+              {tokens.slice(0, 12).map((tok) => {
+                const meta = TOKEN_STATUS[tok.status] || TOKEN_STATUS.expired;
+                const usable = tok.status === 'pending' || tok.status === 'in_progress';
                 return (
-                  <div
-                    key={tok.id}
-                    className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors space-y-2"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="text-xs font-semibold text-white">
-                          {tok.cadetNickname}
-                          <span className="text-[11px] font-mono text-slate-400 ml-1.5">
-                            {tok.cadetStatic}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 truncate max-w-[200px]">
-                          {tok.testTitle}
-                        </div>
+                  <li key={tok.id} className="flex items-start gap-3 px-2 py-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium text-white">
+                        {tok.cadetNickname}
+                        <span className="ml-2 font-mono text-xs font-normal text-slate-500">{tok.cadetStatic}</span>
                       </div>
-
-                      <div className="text-right shrink-0">
-                        {isPending && (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            Очікує кадета
-                          </span>
-                        )}
-                        {isInProgress && (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                            Складає зараз
-                          </span>
-                        )}
-                        {isSubmitted && (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            Здано
-                          </span>
-                        )}
-                        {isExpired && (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-500">
-                            Прострочено
-                          </span>
-                        )}
+                      <div className="mt-0.5 truncate text-xs text-slate-500">{tok.testTitle}</div>
+                      <div className="mt-1.5 flex items-center gap-2 text-xs">
+                        <span className={`inline-flex items-center gap-1.5 font-medium ${meta.text}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                          {meta.label}
+                        </span>
+                        <span className="text-slate-600">{timeAgo(tok.createdAt)}</span>
                       </div>
                     </div>
-
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/50">
-                      <span>Інструктор: {tok.instructorName}</span>
-                      <div className="flex items-center gap-2">
-                        {!isSubmitted && !isExpired && (
-                          <button
-                            onClick={() => onOpenExamAsCadet(tok.token)}
-                            className="text-amber-400 hover:text-amber-300 font-medium"
-                          >
-                            Відкрити
-                          </button>
+                    {usable && (
+                      <button
+                        onClick={() => copyText(linkFor(tok.token), tok.id)}
+                        className="btn btn-ghost !p-2"
+                        title="Скопіювати посилання"
+                        aria-label="Скопіювати посилання"
+                      >
+                        {copied === tok.id ? (
+                          <Check className="h-4 w-4 text-emerald-400" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
                         )}
-                      </div>
-                    </div>
-                  </div>
+                      </button>
+                    )}
+                  </li>
                 );
-              })
-            )}
-          </div>
-        </div>
+              })}
+            </ul>
+          )}
+        </aside>
       </div>
     </div>
   );
