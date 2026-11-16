@@ -1,5 +1,5 @@
-import React from 'react';
-import { Shield } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Shield, X, CheckCircle2, AlertTriangle, Plus, Trash2 } from 'lucide-react';
 
 /* ───────────── Спільні елементи інтерфейсу ───────────── */
 
@@ -132,4 +132,88 @@ export function timeAgo(iso: string): string {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days} дн. тому`;
   return new Date(iso).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+}
+
+// Модальне вікно: закривається Esc і кліком по затемненню
+export const Modal: React.FC<{
+  title: string;
+  description?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  wide?: boolean;
+}> = ({ title, description, onClose, children, footer, wide }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-sm sm:items-center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div role="dialog" aria-modal="true" aria-label={title} className={`panel w-full ${wide ? 'max-w-2xl' : 'max-w-lg'} shadow-2xl shadow-black/50`}>
+        <div className="flex items-start justify-between gap-4 border-b border-[#1b2740] p-5">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-white">{title}</h2>
+            {description && <p className="mt-1 text-sm leading-relaxed text-slate-400">{description}</p>}
+          </div>
+          <button onClick={onClose} className="btn btn-ghost !p-1.5" aria-label="Закрити">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+        {footer && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#1b2740] p-4">{footer}</div>}
+      </div>
+    </div>
+  );
+};
+
+// Повідомлення про результат дії
+export const Notice: React.FC<{ kind: 'ok' | 'error' | 'warn'; children: React.ReactNode }> = ({ kind, children }) => {
+  const style = {
+    ok: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300',
+    error: 'border-red-500/30 bg-red-500/10 text-red-300',
+    warn: 'border-amber-400/25 bg-amber-400/[0.06] text-amber-200',
+  }[kind];
+  const Icon = kind === 'ok' ? CheckCircle2 : AlertTriangle;
+  return (
+    <div role={kind === 'error' ? 'alert' : 'status'} className={`flex items-start gap-3 rounded-xl border p-3.5 text-sm ${style}`}>
+      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+      <div className="min-w-0 leading-relaxed">{children}</div>
+    </div>
+  );
+};
+
+// Редактор списку рядків (причини, цілі крафту)
+export const ListEditor: React.FC<{
+  values: string[];
+  onChange: (v: string[]) => void;
+  placeholder?: string;
+  max?: number;
+}> = ({ values, onChange, placeholder, max = 40 }) => (
+  <div className="space-y-2">
+    {values.map((v, i) => (
+      <div key={i} className="flex gap-2">
+        <input
+          className="field"
+          value={v}
+          maxLength={120}
+          onChange={(e) => onChange(values.map((x, j) => (j === i ? e.target.value : x)))}
+          aria-label={`Пункт ${i + 1}`}
+        />
+        <button type="button" className="btn btn-ghost !px-2.5" onClick={() => onChange(values.filter((_, j) => j !== i))} aria-label="Видалити">
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    ))}
+    {values.length < max && (
+      <button type="button" className="btn btn-secondary" onClick={() => onChange([...values, ''])}>
+        <Plus className="h-4 w-4" />
+        {placeholder || 'Додати'}
+      </button>
+    )}
+  </div>
+);
+
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }

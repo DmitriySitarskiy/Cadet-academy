@@ -65,7 +65,6 @@ export async function sendDiscordExamSubmission(
 
   const payload: any = {
     username: `${db.settings.academyName} | Екзаменатор`,
-    avatar_url: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=128&q=80',
     content: mentionContent,
     thread_name: forumThreadName.slice(0, 100), // Discord Forum thread title
     embeds: [
@@ -211,7 +210,6 @@ export async function sendDiscordInstructorDecision(
 
   const payload: any = {
     username: `${db.settings.academyName} | Штаб Академії`,
-    avatar_url: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=128&q=80',
     content: result.cadetDiscord
       ? `📢 <@${result.cadetDiscord}>, інструктор оновив статус вашого іспиту!`
       : `Оновлено статус іспиту кадета ${result.cadetNickname}`,

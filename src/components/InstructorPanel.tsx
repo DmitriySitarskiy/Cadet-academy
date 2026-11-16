@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Copy, Check, ExternalLink, AlertTriangle, Clock, RefreshCw, Link2, X } from 'lucide-react';
-import { TestConfig, ExamToken } from '../types';
+import { Send, Copy, Check, ExternalLink, AlertTriangle, Clock, RefreshCw, Link2, X, Search } from 'lucide-react';
+import { TestConfig, ExamToken, CadetCandidate } from '../types';
 import { api } from '../services/api';
-import { PageHeader, EmptyState, timeAgo } from './ui';
+import { PageHeader, EmptyState, StatusLabel, timeAgo } from './ui';
+import { rankLabel } from '../ranks';
 
 interface InstructorPanelProps {
   tests: TestConfig[];
@@ -21,6 +22,36 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
   const [cadetStatic, setCadetStatic] = useState('');
   const [cadetDiscord, setCadetDiscord] = useState('');
   const [selectedTestId, setSelectedTestId] = useState<string>('');
+
+  // Пошук кадета: підставляє нікнейм, статік і Discord ID
+  const [search, setSearch] = useState('');
+  const [matches, setMatches] = useState<CadetCandidate[] | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) {
+      setMatches(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      api.searchCadets(q).then((r) => !cancelled && setMatches(r)).catch(() => !cancelled && setMatches([]));
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search]);
+
+  const pickCadet = (c: CadetCandidate) => {
+    setCadetNickname(c.nickname);
+    setCadetStatic(c.staticId);
+    setCadetDiscord(c.discordId);
+    setPicked(c.nickname);
+    setSearch('');
+    setMatches(null);
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,6 +111,7 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
       setCadetNickname('');
       setCadetStatic('');
       setCadetDiscord('');
+      setPicked(null);
       loadTokens();
     } catch (err: any) {
       setError(err.message || 'Не вдалося створити посилання.');
@@ -168,6 +200,58 @@ export const InstructorPanel: React.FC<InstructorPanelProps> = ({ tests, onOpenE
                 <div className="leading-relaxed text-red-200">{error}</div>
               </div>
             )}
+
+            <div>
+              <label htmlFor="cadet-search" className="label">
+                Знайти кадета
+              </label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <input
+                  id="cadet-search"
+                  type="search"
+                  autoComplete="off"
+                  placeholder="Нікнейм, статік або Discord ID"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="field !pl-9"
+                />
+              </div>
+              {matches && (
+                <ul className="mt-2 overflow-hidden rounded-xl border border-[#1b2740] bg-[#070d1a]">
+                  {matches.length === 0 && (
+                    <li className="p-3 text-sm text-slate-500">Нікого не знайдено. Заповніть поля нижче вручну.</li>
+                  )}
+                  {matches.map((c) => (
+                    <li key={`${c.staticId}-${c.nickname}`}>
+                      <button
+                        type="button"
+                        onClick={() => pickCadet(c)}
+                        className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3.5 py-2.5 text-left hover:bg-white/[0.04]"
+                      >
+                        <span className="min-w-0 truncate text-sm text-slate-100">
+                          {c.nickname} <span className="font-mono text-slate-500">{c.staticId}</span>
+                        </span>
+                        <span className="flex items-center gap-3 text-xs text-slate-400">
+                          {c.rank ? <span>{rankLabel(c.rank)}</span> : null}
+                          {c.lastStatus ? (
+                            <>
+                              <StatusLabel status={c.lastStatus} />
+                              {c.lastAt && <span>{timeAgo(c.lastAt)}</span>}
+                            </>
+                          ) : c.attempts === 0 ? (
+                            <span>{c.inOfficerDb ? 'у базі офіцерів' : 'ще не складав'}</span>
+                          ) : null}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {picked && !matches && (
+                <p className="hint">Підставлено дані кадета {picked}. Перевірте поля й виберіть іспит.</p>
+              )}
+            </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>

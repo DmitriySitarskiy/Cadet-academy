@@ -5,6 +5,12 @@ import {
   AppSettings,
   User,
   DiscordLogEntry,
+  Officer,
+  HrAudit,
+  CraftReport,
+  CraftItem,
+  PortalConfig,
+  CadetCandidate,
 } from '../types';
 
 // Авторизація тепер працює через httpOnly cookie (його ставить сервер після входу),
@@ -14,6 +20,17 @@ function getAuthHeaders(extra: Record<string, string> = {}): Record<string, stri
     'Content-Type': 'application/json',
     ...extra,
   };
+}
+
+async function request<T>(url: string, method = 'GET', body?: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method,
+    headers: getAuthHeaders(),
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as any).error || `Помилка ${res.status}`);
+  return data as T;
 }
 
 export const api = {
@@ -246,4 +263,29 @@ export const api = {
     if (!res.ok) return [];
     return res.json();
   },
+
+  // ----- Портал: кадри та склад -----
+  getPortalConfig: () => request<PortalConfig>('/api/portal/config'),
+  getProfile: () => request<{ officer: Officer | null; discordLinked: boolean }>('/api/me/profile'),
+  saveProfile: (data: { name: string; staticId: string; department: string }) =>
+    request<{ officer: Officer; user: User }>('/api/me/profile', 'PUT', data),
+  getOfficers: () => request<Officer[]>('/api/hr/officers'),
+  updateOfficer: (id: string, data: any) => request<{ officer: Officer }>(`/api/hr/officers/${id}`, 'PUT', data),
+  async parseDocx(file: File): Promise<{ questions: { title: string; options: string[]; detectedCorrect: number[] }[]; warnings: string[] }> {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return request('/api/tests/import-docx', 'POST', { file: btoa(bin) });
+  },
+  searchCadets: (q: string) => request<CadetCandidate[]>(`/api/cadets/search?q=${encodeURIComponent(q)}`),
+  getAudits: () => request<HrAudit[]>('/api/hr/audits?limit=100'),
+  createAudit: (data: any) =>
+    request<{ audit: HrAudit; discordSent: boolean; discordError?: string }>('/api/hr/audits', 'POST', data),
+  repostAudit: (id: string) => request<{ success: boolean; discordError?: string }>(`/api/hr/audits/${id}/repost`, 'POST'),
+  saveReasons: (reasons: string[]) => request<{ reasons: string[] }>('/api/portal/reasons', 'PUT', { reasons }),
+  saveCatalog: (items: CraftItem[], purposes: string[]) =>
+    request<{ catalog: CraftItem[]; purposes: string[] }>('/api/portal/catalog', 'PUT', { items, purposes }),
+  getCrafts: () => request<CraftReport[]>('/api/crafts?limit=100'),
+  submitCraft: (data: any) => request<{ success: boolean; totalCost: number }>('/api/crafts', 'POST', data),
+  savePortalSettings: (data: any) => request<{ success: boolean }>('/api/settings/portal', 'POST', data),
 };

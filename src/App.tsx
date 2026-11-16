@@ -16,8 +16,14 @@ import { CadetLookupModal } from './components/CadetLookupModal';
 import { InstructorAccountsModal } from './components/InstructorAccountsModal';
 import { ExamTaker } from './components/ExamTaker';
 import { RoleManager } from './components/RoleManager';
+import { HrAuditPage } from './components/HrAuditPage';
+import { OfficersPage } from './components/OfficersPage';
+import { CraftReportPage } from './components/CraftReportPage';
+import { CraftCatalogPage } from './components/CraftCatalogPage';
+import { ProfileModal } from './components/ProfileModal';
 import { BrandMark } from './components/ui';
-import { User, AppSettings, TestConfig, ExamResult } from './types';
+import { User, AppSettings, TestConfig, ExamResult, PortalConfig } from './types';
+import { RANKS } from './ranks';
 import { api } from './services/api';
 
 const PAGE_TITLES: Record<string, string> = {
@@ -26,6 +32,10 @@ const PAGE_TITLES: Record<string, string> = {
   tests: 'Банк тестів',
   discord: 'Discord-вебхук',
   roles: 'Ролі та доступ',
+  hr: 'Кадровий аудит',
+  officers: 'Особовий склад',
+  craft: 'Звіт складу',
+  catalog: 'Каталог крафту',
 };
 
 export default function App() {
@@ -34,6 +44,9 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [tests, setTests] = useState<TestConfig[]>([]);
   const [results, setResults] = useState<ExamResult[]>([]);
+  const [portalConfig, setPortalConfig] = useState<PortalConfig>({ ranks: RANKS, reasons: [], purposes: [], catalog: [] });
+  const [profileConfirmed, setProfileConfirmed] = useState<boolean>(true);
+  const [showProfile, setShowProfile] = useState<boolean>(false);
 
   const [currentTab, setCurrentTab] = useState<string>('results');
   const [loading, setLoading] = useState<boolean>(true);
@@ -107,6 +120,14 @@ export default function App() {
         setTests([]);
         setResults([]);
       }
+
+      // Довідники порталу та перевірка профілю — для всього особового складу
+      if (user && ['leader', 'instructor', 'officer'].includes(user.role)) {
+        api.getPortalConfig().then(setPortalConfig).catch((e) => console.error(e));
+        if (user.discordId) {
+          api.getProfile().then((p) => setProfileConfirmed(Boolean(p.officer?.confirmed))).catch(() => {});
+        }
+      }
     } catch (e) {
       console.error('Error loading initial data', e);
       setCurrentUser(null);
@@ -154,8 +175,32 @@ export default function App() {
     return <ExamTaker token={cadetExamToken} onExit={handleExitCadetExam} />;
   }
 
+  const isMember = Boolean(currentUser && ['leader', 'instructor', 'officer'].includes(currentUser.role));
   const isStaff = Boolean(currentUser && (currentUser.role === 'leader' || currentUser.role === 'instructor'));
   const isLeader = currentUser?.role === 'leader';
+  const canHr = isLeader || Boolean(currentUser?.perms?.includes('hr'));
+  const canMts = isLeader || Boolean(currentUser?.perms?.includes('mts'));
+
+  const isAllowed = (id: string): boolean => {
+    switch (id) {
+      case 'results':
+      case 'generator':
+      case 'tests':
+        return isStaff;
+      case 'discord':
+      case 'roles':
+        return isLeader;
+      case 'hr':
+      case 'officers':
+        return canHr;
+      case 'catalog':
+        return canMts;
+      case 'craft':
+        return isMember;
+      default:
+        return false;
+    }
+  };
 
   // Поки сесія завантажується
   if (loading && !currentUser) {
@@ -170,7 +215,7 @@ export default function App() {
   }
 
   // Екран входу
-  if (!isStaff) {
+  if (!isMember) {
     return (
       <SignInScreen
         settings={settings}
@@ -182,7 +227,7 @@ export default function App() {
   }
 
   // Адмін-розділи доступні лише керівнику
-  const tab = !isLeader && (currentTab === 'discord' || currentTab === 'roles') ? 'results' : currentTab;
+  const tab = isAllowed(currentTab) ? currentTab : isStaff ? 'results' : 'craft';
   const pendingCount = results.filter((r) => r.status === 'pending_review').length;
 
   return (
@@ -195,6 +240,7 @@ export default function App() {
         pendingCount={pendingCount}
         onOpenCadetLookup={() => setShowCadetLookup(true)}
         onOpenInstructors={() => setShowInstructorsModal(true)}
+        onOpenProfile={() => setShowProfile(true)}
         onLogout={handleLogout}
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -211,6 +257,12 @@ export default function App() {
         </header>
 
         <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-8 sm:py-10">
+          {!profileConfirmed && currentUser?.discordId && (
+            <div className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-4 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+              <span>Перевірте своє ім'я та статік: вони підставляються у кадрові аудити та звіти складу.</span>
+              <button className="btn btn-primary shrink-0" onClick={() => setShowProfile(true)}>Перевірити профіль</button>
+            </div>
+          )}
           {loading ? (
             <div className="flex items-center justify-center gap-3 py-24 text-sm text-slate-400">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
@@ -240,6 +292,25 @@ export default function App() {
               {tab === 'roles' && (
                 <RoleManager settings={settings} currentUser={currentUser} onRefreshSettings={loadAllData} />
               )}
+
+              {tab === 'hr' && (
+                <HrAuditPage
+                  config={portalConfig}
+                  currentUser={currentUser}
+                  onConfigChanged={() => api.getPortalConfig().then(setPortalConfig)}
+                  onOpenProfile={() => setShowProfile(true)}
+                />
+              )}
+
+              {tab === 'officers' && <OfficersPage />}
+
+              {tab === 'craft' && (
+                <CraftReportPage config={portalConfig} currentUser={currentUser} onOpenProfile={() => setShowProfile(true)} />
+              )}
+
+              {tab === 'catalog' && (
+                <CraftCatalogPage config={portalConfig} onConfigChanged={() => api.getPortalConfig().then(setPortalConfig)} />
+              )}
             </>
           )}
         </main>
@@ -256,6 +327,16 @@ export default function App() {
             }
           }}
           onUpdated={loadAllData}
+        />
+      )}
+
+      {showProfile && (
+        <ProfileModal
+          onClose={() => setShowProfile(false)}
+          onSaved={(user) => {
+            setCurrentUser(user);
+            setProfileConfirmed(true);
+          }}
         />
       )}
 

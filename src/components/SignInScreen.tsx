@@ -106,8 +106,8 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ settings, error, onU
         <p className="mt-1.5 text-sm text-slate-500">{MOTTO_UA}</p>
 
         <p className="mt-12 max-w-[44ch] border-t border-[#1b2740] pt-6 text-base leading-relaxed text-slate-400">
-          Кабінет інструкторів: видавайте одноразові посилання, перевіряйте роботи й виносьте вердикти. Результат
-          одразу потрапляє у вашу гілку в Discord.
+          Кабінет департаменту: кадровий аудит, звіти складу, а для інструкторів ще й іспити кадетів з одноразовими
+          посиланнями та вердиктами. Результат одразу потрапляє в Discord.
         </p>
       </div>
 
@@ -119,9 +119,9 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ settings, error, onU
     {/* Права частина: вхід */}
     <div className="flex items-center justify-center px-6 py-12 sm:px-12">
       <div className="w-full max-w-sm">
-        <h2 className="text-2xl font-semibold tracking-tight text-white">Вхід для персоналу</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-white">Вхід для особового складу</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-400">
-          Потрібна роль інструктора або керівника на Discord-сервері фракції.
+          Потрібна роль офіцера, інструктора або керівника на Discord-сервері департаменту.
         </p>
 
         {shownError && (

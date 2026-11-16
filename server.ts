@@ -3,9 +3,11 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-import { getDb, saveDb, ensureDbLoaded } from './server/db.js';
+import { getDb, saveDb, ensureDbLoaded, getDbStats } from './server/db.js';
 import { sendDiscordExamSubmission, sendDiscordInstructorDecision } from './server/discord.js';
-import { ExamToken, ExamResult, AnswerSubmission, AntiCheatEvent, User, UserRole, AppSettings } from './src/types.js';
+import { ExamToken, ExamResult, AnswerSubmission, AntiCheatEvent, User, UserRole, AppSettings, PortalPerm } from './src/types.js';
+import { registerPortalRoutes, ensureOfficer } from './server/portal.js';
+import { parseQuestionsFromDocx } from './server/docx.js';
 
 dotenv.config();
 
@@ -32,7 +34,8 @@ const IS_PROD = process.env.NODE_ENV === 'production' || Boolean(process.env.REN
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 
-app.use(async (req, res, next) => {
+// Базу з хмари перевіряємо лише для API та входу, а не для кожного файлу сайту (економія трафіку Supabase)
+app.use(['/api', '/auth'], async (req, res, next) => {
   try {
     await ensureDbLoaded();
   } catch (err) {
@@ -237,6 +240,12 @@ function settingsForUser(user: User | null): Partial<AppSettings> {
     discordRoleMentionId: s.discordRoleMentionId,
     discordClientSecretSet: Boolean(getClientSecret()),
     roleAuditLogs: s.roleAuditLogs || [],
+    discordOfficerRoleId: s.discordOfficerRoleId,
+    discordHrRoleId: s.discordHrRoleId,
+    discordMtsRoleId: s.discordMtsRoleId,
+    discordHrWebhookUrl: s.discordHrWebhookUrl,
+    discordCraftWebhookUrl: s.discordCraftWebhookUrl,
+    discordCraftUseThread: Boolean(s.discordCraftUseThread),
   };
 }
 
@@ -297,6 +306,8 @@ app.get('/api/test-db', requireLeader, async (req, res) => {
     urlFormatValid: url ? url.startsWith('https://') : false,
     hasKey: Boolean(key),
     keyLength: key ? key.length : 0,
+    usage: getDbStats(),
+    mainJsonKB: Math.round(JSON.stringify(getDb()).length / 1024),
   };
 
   if (!url || !key) {
@@ -514,10 +525,14 @@ app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
     let assignedRole: UserRole | null = null;
     let diagnosticInfo = '';
     let guildNickname: string | null = null;
+    const perms: PortalPerm[] = [];
 
     const guildId = (db.settings.discordGuildId || '').trim();
     const leaderRoleId = (db.settings.discordLeaderRoleId || '').trim();
     const instructorRoleId = (db.settings.discordInstructorRoleId || '').trim();
+    const officerRoleId = (db.settings.discordOfficerRoleId || '').trim();
+    const hrRoleId = (db.settings.discordHrRoleId || '').trim();
+    const mtsRoleId = (db.settings.discordMtsRoleId || '').trim();
 
     if (guildId) {
       try {
@@ -534,8 +549,15 @@ app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
             assignedRole = 'leader';
           } else if (instructorRoleId && guildRoles.includes(instructorRoleId)) {
             assignedRole = 'instructor';
-          } else {
-            diagnosticInfo = 'Ваші ролі на сервері не збігаються з ролями Шерифа чи Інструктора, вказаними в налаштуваннях.';
+          } else if (officerRoleId && guildRoles.includes(officerRoleId)) {
+            assignedRole = 'officer';
+          }
+          if (hrRoleId && guildRoles.includes(hrRoleId)) perms.push('hr');
+          if (mtsRoleId && guildRoles.includes(mtsRoleId)) perms.push('mts');
+          // Кадровик або МТС без загальної ролі офіцера все одно належить до складу
+          if (!assignedRole && perms.length) assignedRole = 'officer';
+          if (!assignedRole) {
+            diagnosticInfo = 'Ваші ролі на сервері не збігаються з ролями, вказаними в налаштуваннях.';
           }
         } else {
           diagnosticInfo = `Discord API повернув статус ${memberRes.status}. Переконайтеся, що ви перебуваєте на сервері фракції (Guild ID налаштовано вірно).`;
@@ -548,7 +570,7 @@ app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
     }
 
     if (!assignedRole) {
-      return fail(`У вашому Discord-акаунті відсутня роль Інструктора або Шерифа на сервері фракції. Вхід дозволено лише викладацькому складу. ${diagnosticInfo}`);
+      return fail(`У вашому Discord-акаунті відсутня роль офіцера, Інструктора або Шерифа на сервері фракції. ${diagnosticInfo}`);
     }
 
     const displayName = guildNickname || discordUser.global_name || discordUser.username;
@@ -561,6 +583,7 @@ app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
       authedUser.discordUsername = discordUser.username;
       authedUser.discordAvatar = avatar;
       authedUser.authMethod = 'discord_oauth';
+      authedUser.perms = perms;
     } else {
       authedUser = {
         id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -571,9 +594,15 @@ app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
         discordUsername: discordUser.username,
         discordAvatar: avatar,
         authMethod: 'discord_oauth',
+        perms,
       };
       db.users.push(authedUser);
     }
+
+    // Запис в базі офіцерів: перший вхід бере ім'я й статік з нікнейму, далі діє профіль людини
+    const officer = await ensureOfficer({ discordId: discordUser.id, nick: guildNickname, fallbackName: displayName });
+    if (officer?.name && officer.confirmed) authedUser.name = officer.name;
+    if (officer?.staticId) authedUser.staticId = officer.staticId;
 
     saveDb();
     startSession(res, authedUser);
@@ -787,6 +816,20 @@ app.get('/api/tests', requireStaff, (req, res) => {
   res.json(getDb().tests);
 });
 
+// Імпорт питань з Word (.docx): лише розпізнавання, збереження робить клієнт після підтвердження інструктором
+app.post('/api/tests/import-docx', requireStaff, (req, res) => {
+  if (!rateLimit(`docx:${req.ip}`, 20, 10 * 60 * 1000)) return res.status(429).json({ error: 'Забагато спроб. Спробуйте за кілька хвилин.' });
+  const b64 = typeof req.body?.file === 'string' ? req.body.file : '';
+  if (!b64) return res.status(400).json({ error: 'Файл не передано.' });
+  const buf = Buffer.from(b64, 'base64');
+  if (buf.length > 6 * 1024 * 1024) return res.status(413).json({ error: 'Файл завеликий (макс. 6 МБ).' });
+  try {
+    res.json(parseQuestionsFromDocx(buf));
+  } catch (e: any) {
+    res.status(400).json({ error: e.message || 'Не вдалося прочитати файл.' });
+  }
+});
+
 app.post('/api/tests', requireStaff, (req, res) => {
   const db = getDb();
   const testData = req.body;
@@ -842,7 +885,7 @@ app.post('/api/links/generate', requireStaff, (req, res) => {
 
   // ── Контроль перездач: інтервал між іспитами та ліміт спроб ──
   {
-    const norm = (v: any) => String(v || '').trim().toLowerCase();
+    const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/^#/, ''); // «#14285» і «14285» — той самий статік
     const staticKey = norm(cadetStatic);
     const now = Date.now();
     const cooldownMs = (Number(test.cooldownHours) >= 0 ? Number(test.cooldownHours) : 24) * 3600 * 1000;
@@ -1243,6 +1286,8 @@ app.get('/api/cadets/history', requireStaff, (req, res) => {
   const q = String(query).toLowerCase().trim();
   res.json(db.results.filter((r) => r.cadetNickname.toLowerCase().includes(q) || r.cadetStatic.toLowerCase().includes(q)));
 });
+
+registerPortalRoutes(app, { getCurrentUser, getDb, saveDb, rateLimit, isValidWebhookUrl });
 
 async function startServer() {
   if (process.env.NETLIFY) return;

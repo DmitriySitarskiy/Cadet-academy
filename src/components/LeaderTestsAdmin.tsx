@@ -13,10 +13,12 @@ import {
   FileQuestion,
   CheckCircle2,
   Lock,
+  FileUp,
 } from 'lucide-react';
 import { TestConfig, Question, QuestionType, User } from '../types';
 import { api } from '../services/api';
 import { PageHeader, EmptyState } from './ui';
+import { ImportDocxModal } from './ImportDocxModal';
 
 interface LeaderTestsAdminProps {
   tests: TestConfig[];
@@ -42,6 +44,7 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
   } | null>(null);
 
   const [saving, setSaving] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   // Open modal to create a test
   const handleCreateTest = () => {
@@ -175,13 +178,31 @@ export const LeaderTestsAdmin: React.FC<LeaderTestsAdminProps> = ({
         description="Іспити, їхні правила та питання, з яких система складає білет для кожного кадета."
         actions={
           canManageTests ? (
-            <button onClick={handleCreateTest} className="btn btn-primary">
-              <Plus className="h-4 w-4" />
-              Новий іспит
-            </button>
+            <>
+              <button onClick={() => setShowImport(true)} className="btn btn-secondary">
+                <FileUp className="h-4 w-4" />
+                Імпорт з Word
+              </button>
+              <button onClick={handleCreateTest} className="btn btn-primary">
+                <Plus className="h-4 w-4" />
+                Новий іспит
+              </button>
+            </>
           ) : undefined
         }
       />
+
+      {showImport && (
+        <ImportDocxModal
+          tests={tests}
+          defaultTestId={selectedTestForBank?.id || tests[0]?.id}
+          onClose={() => setShowImport(false)}
+          onDone={() => {
+            setShowImport(false);
+            onRefreshTests();
+          }}
+        />
+      )}
 
       {tests.length === 0 ? (
         <div className="panel">

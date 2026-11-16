@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { TestConfig, ExamToken, ExamResult, AppSettings, User, DiscordLogEntry } from '../src/types.js';
+import { TestConfig, ExamToken, ExamResult, AppSettings, User, DiscordLogEntry, CraftItem } from '../src/types.js';
 
 const isNetlify = Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const DATA_DIR = isNetlify ? path.resolve('/tmp', 'data') : path.resolve(process.cwd(), 'data');
@@ -18,6 +18,39 @@ export interface DatabaseSchema {
   tokens: ExamToken[];
   results: ExamResult[];
   discordLogs: DiscordLogEntry[];
+  // Рідко змінювані налаштування порталу (довідники). Великі дані лежать в окремих таблицях (server/store.ts)
+  portal: PortalData;
+}
+
+export interface PortalData {
+  reasons: string[]; // типові підстави кадрових рішень
+  purposes: string[]; // типові цілі крафту
+  catalog: CraftItem[]; // позиції крафту та вартість матеріалів
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+const defaultPortal: PortalData = {
+  reasons: [
+    'Результати співбесіди',
+    'Переведення з іншого відділу',
+    'Підвищення за нормативами',
+    'Пониження за порушення дисципліни',
+    'Звільнення за власним бажанням',
+    'Звільнення за неактив',
+  ],
+  purposes: ['Моя добова норма'],
+  catalog: [],
+};
+
+export function sanitizePortal(p: any): PortalData {
+  return {
+    ...defaultPortal,
+    ...(p || {}),
+    reasons: Array.isArray(p?.reasons) ? p.reasons : defaultPortal.reasons,
+    purposes: Array.isArray(p?.purposes) ? p.purposes : defaultPortal.purposes,
+    catalog: Array.isArray(p?.catalog) ? p.catalog : [],
+  };
 }
 
 const defaultSettings: AppSettings = {
@@ -58,19 +91,46 @@ function sanitizeUsers(users: User[] = []): User[] {
 }
 
 
-async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
+const cloudHeaders = () => ({ apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` });
+const CLOUD_ENABLED = Boolean(SUPABASE_URL && SUPABASE_KEY);
+
+// Лічильники для оцінки трафіку (дивіться /api/test-db). Скидаються при перезапуску сервера.
+const stats = { since: new Date().toISOString(), metaChecks: 0, fullFetches: 0, skippedFetches: 0, fullBytes: 0, lastFullKB: 0, pushes: 0, pushBytes: 0 };
+export function getDbStats() {
+  return { ...stats, approxEgressMB: Math.round((stats.fullBytes / 1048576) * 100) / 100 };
+}
+
+const toMs = (v: unknown): number | null => {
+  const t = typeof v === 'string' ? Date.parse(v) : NaN;
+  return Number.isFinite(t) ? t : null;
+};
+
+// Дуже легкий запит: лише мітка часу останнього збереження (кілька десятків байтів)
+async function fetchCloudStamp(): Promise<{ ok: boolean; updatedAt: number | null }> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data`, {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-      },
-    });
+    stats.metaChecks++;
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=updated_at`, { headers: cloudHeaders() });
+    if (!res.ok) return { ok: false, updatedAt: null };
+    const rows = (await res.json()) as any[];
+    return { ok: true, updatedAt: rows.length ? toMs(rows[0]?.updated_at) : null };
+  } catch (err) {
+    console.warn('[Supabase Stamp Error]:', err);
+    return { ok: false, updatedAt: null };
+  }
+}
+
+async function fetchFromSupabase(): Promise<{ db: DatabaseSchema; updatedAt: number | null } | null> {
+  if (!CLOUD_ENABLED) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data,updated_at`, { headers: cloudHeaders() });
     if (res.ok) {
-      const rows = (await res.json()) as any[];
+      const text = await res.text();
+      stats.fullFetches++;
+      stats.fullBytes += text.length;
+      stats.lastFullKB = Math.round(text.length / 1024);
+      const rows = JSON.parse(text) as any[];
       if (rows.length > 0 && rows[0].data) {
-        return rows[0].data as DatabaseSchema;
+        return { db: rows[0].data as DatabaseSchema, updatedAt: toMs(rows[0].updated_at) };
       }
     }
   } catch (err) {
@@ -80,12 +140,18 @@ async function fetchFromSupabase(): Promise<DatabaseSchema | null> {
 }
 
 let pendingPushes = 0;
+let knownUpdatedAt: number | null = null; // мітка часу версії бази, яку ми вже маємо
+let stampUnusable = false; // якщо Supabase не віддає updated_at, рідше перевіряємо базу
 let lastSaveAt = 0;
 
 async function pushToSupabase(data: DatabaseSchema): Promise<void> {
   if (!SUPABASE_URL || !SUPABASE_KEY) return;
   pendingPushes++;
+  const stamp = new Date();
   try {
+    const body = JSON.stringify({ id: 'main', data, updated_at: stamp.toISOString() });
+    stats.pushes++;
+    stats.pushBytes += body.length;
     const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?on_conflict=id`, {
       method: 'POST',
       headers: {
@@ -94,14 +160,13 @@ async function pushToSupabase(data: DatabaseSchema): Promise<void> {
         'Content-Type': 'application/json',
         Prefer: 'resolution=merge-duplicates',
       },
-      body: JSON.stringify({
-        id: 'main',
-        data,
-        updated_at: new Date().toISOString(),
-      }),
+      body,
     });
     if (!res.ok) {
       console.error('[Supabase Save Error]:', res.status, await res.text());
+    } else {
+      // Наше власне збереження не потрібно завантажувати назад
+      knownUpdatedAt = stamp.getTime();
     }
   } catch (err) {
     console.error('[Supabase Save Exception]:', err);
@@ -126,6 +191,7 @@ function initDbSync(): DatabaseSchema {
         tokens: parsed.tokens || [],
         results: parsed.results || [],
         discordLogs: parsed.discordLogs || [],
+        portal: sanitizePortal(parsed.portal),
       };
     }
   } catch (err) {
@@ -139,6 +205,7 @@ function initDbSync(): DatabaseSchema {
     tokens: [],
     results: [],
     discordLogs: [],
+    portal: sanitizePortal(null),
   };
 
   try {
@@ -152,11 +219,25 @@ let dbInstance: DatabaseSchema = initDbSync();
 let lastCloudFetchTime = 0;
 
 export async function ensureDbLoaded(): Promise<void> {
-  if (Date.now() - lastCloudFetchTime < 3000) return;
+  if (!CLOUD_ENABLED) return;
+  const now = Date.now();
+  if (now - lastCloudFetchTime < (stampUnusable ? 15000 : 3000)) return;
   // Не підтягуємо базу з хмари, поки наші зміни ще записуються (інакше свіжі дані затираються старими)
-  if (pendingPushes > 0 || Date.now() - lastSaveAt < 5000) return;
-  const cloudDb = await fetchFromSupabase();
-  if (cloudDb) {
+  if (pendingPushes > 0 || now - lastSaveAt < 5000) return;
+  lastCloudFetchTime = now;
+
+  // 1) Спершу легка перевірка: чи хтось змінював базу після нашої версії?
+  const stamp = await fetchCloudStamp();
+  stampUnusable = stamp.ok && stamp.updatedAt === null && knownUpdatedAt !== null;
+  if (stamp.ok && stamp.updatedAt !== null && knownUpdatedAt !== null && stamp.updatedAt === knownUpdatedAt) {
+    stats.skippedFetches++;
+    return;
+  }
+
+  // 2) База змінилась (або це перший запуск): завантажуємо повністю
+  const cloud = await fetchFromSupabase();
+  if (cloud) {
+    const cloudDb = cloud.db;
     dbInstance = {
       settings: sanitizeSettings(cloudDb.settings),
       users: sanitizeUsers(cloudDb.users || []),
@@ -164,9 +245,10 @@ export async function ensureDbLoaded(): Promise<void> {
       tokens: cloudDb.tokens || [],
       results: cloudDb.results || [],
       discordLogs: cloudDb.discordLogs || [],
+      portal: sanitizePortal((cloudDb as any).portal),
     };
+    knownUpdatedAt = cloud.updatedAt;
   }
-  lastCloudFetchTime = Date.now();
 }
 
 export function getDb(): DatabaseSchema {
@@ -175,6 +257,8 @@ export function getDb(): DatabaseSchema {
 
 export function saveDb(): void {
   lastSaveAt = Date.now();
+  // Журнал Discord не має рости безкінечно (це зменшує базу й трафік)
+  if (dbInstance.discordLogs.length > 200) dbInstance.discordLogs = dbInstance.discordLogs.slice(0, 200);
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });

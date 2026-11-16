@@ -18,6 +18,7 @@ import { AppSettings, User, RoleAuditLogEntry } from '../types';
 import { api } from '../services/api';
 import { RoleConfirmModal } from './RoleConfirmModal';
 import { PageHeader, SettingsSection } from './ui';
+import { PortalSettingsModal } from './PortalSettingsModal';
 
 interface RoleManagerProps {
   settings: AppSettings | null;
@@ -67,6 +68,7 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
 
   // Confirmation Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showPortal, setShowPortal] = useState(false);
   const [copiedRedirect, setCopiedRedirect] = useState(false);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
@@ -126,7 +128,18 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
       <PageHeader
         title="Ролі та доступ"
         description="Хто може входити в кабінет і як називаються посади. Вхід через Discord працює за роллю на вашому сервері."
+        actions={
+          isLeader && (
+            <button type="button" className="btn btn-secondary" onClick={() => setShowPortal(true)}>
+              <Users className="h-4 w-4" />
+              Портал: ролі та вебхуки
+            </button>
+          )
+        }
       />
+      {showPortal && (
+        <PortalSettingsModal settings={settings} onClose={() => setShowPortal(false)} onSaved={onRefreshSettings} />
+      )}
 
       {!isLeader && (
         <div className="mb-5 flex items-center gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.05] p-4 text-sm text-amber-200">

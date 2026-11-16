@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Send, History, BookOpen, Radio, Key, Users, LogOut, X } from 'lucide-react';
+import { FileText, Send, History, BookOpen, Radio, Key, Users, LogOut, X, ClipboardList, Contact, Package, Boxes } from 'lucide-react';
 import { User, AppSettings } from '../types';
 import { BrandMark } from './ui';
 import { ACADEMY_NAME, DEPARTMENT_SHORT } from '../brand';
@@ -12,6 +12,7 @@ interface SidebarProps {
   pendingCount: number;
   onOpenCadetLookup: () => void;
   onOpenInstructors: () => void;
+  onOpenProfile: () => void;
   onLogout: () => void;
   open: boolean; // мобільне меню
   onClose: () => void;
@@ -56,14 +57,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pendingCount,
   onOpenCadetLookup,
   onOpenInstructors,
+  onOpenProfile,
   onLogout,
   open,
   onClose,
 }) => {
   const isLeader = currentUser?.role === 'leader';
+  const isStaff = isLeader || currentUser?.role === 'instructor';
+  const canHr = isLeader || Boolean(currentUser?.perms?.includes('hr'));
+  const canMts = isLeader || Boolean(currentUser?.perms?.includes('mts'));
   const roleTitle = isLeader
     ? settings?.roleTitles?.leader || 'Лідер'
-    : settings?.roleTitles?.instructor || 'Інструктор';
+    : currentUser?.role === 'instructor'
+      ? settings?.roleTitles?.instructor || 'Інструктор'
+      : 'Офіцер';
 
   // Після вибору пункту мобільне меню закривається
   const go = (fn: () => void) => () => {
@@ -98,36 +105,74 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Навігація */}
         <nav className="flex-1 overflow-y-auto px-3 pb-4">
-          <GroupTitle>Іспити</GroupTitle>
-          <div className="space-y-0.5">
-            <NavItem
-              icon={<FileText className="w-[1.1rem] h-[1.1rem]" />}
-              label="Результати"
-              badge={pendingCount}
-              active={currentTab === 'results'}
-              onClick={tab('results')}
-            />
-            <NavItem
-              icon={<Send className="w-[1.1rem] h-[1.1rem]" />}
-              label="Видати посилання"
-              active={currentTab === 'generator'}
-              onClick={tab('generator')}
-            />
-            <NavItem
-              icon={<History className="w-[1.1rem] h-[1.1rem]" />}
-              label="Історія кадета"
-              onClick={go(onOpenCadetLookup)}
-            />
-          </div>
+          {isStaff && (
+            <>
+              <GroupTitle>Іспити</GroupTitle>
+              <div className="space-y-0.5">
+                <NavItem
+                  icon={<FileText className="w-[1.1rem] h-[1.1rem]" />}
+                  label="Результати"
+                  badge={pendingCount}
+                  active={currentTab === 'results'}
+                  onClick={tab('results')}
+                />
+                <NavItem
+                  icon={<Send className="w-[1.1rem] h-[1.1rem]" />}
+                  label="Видати посилання"
+                  active={currentTab === 'generator'}
+                  onClick={tab('generator')}
+                />
+                <NavItem
+                  icon={<History className="w-[1.1rem] h-[1.1rem]" />}
+                  label="Історія кадета"
+                  onClick={go(onOpenCadetLookup)}
+                />
+                <NavItem
+                  icon={<BookOpen className="w-[1.1rem] h-[1.1rem]" />}
+                  label="Банк тестів"
+                  active={currentTab === 'tests'}
+                  onClick={tab('tests')}
+                />
+              </div>
+            </>
+          )}
 
-          <GroupTitle>Матеріали</GroupTitle>
+          {canHr && (
+            <>
+              <GroupTitle>Кадри</GroupTitle>
+              <div className="space-y-0.5">
+                <NavItem
+                  icon={<ClipboardList className="w-[1.1rem] h-[1.1rem]" />}
+                  label="Кадровий аудит"
+                  active={currentTab === 'hr'}
+                  onClick={tab('hr')}
+                />
+                <NavItem
+                  icon={<Contact className="w-[1.1rem] h-[1.1rem]" />}
+                  label="Особовий склад"
+                  active={currentTab === 'officers'}
+                  onClick={tab('officers')}
+                />
+              </div>
+            </>
+          )}
+
+          <GroupTitle>Склад</GroupTitle>
           <div className="space-y-0.5">
             <NavItem
-              icon={<BookOpen className="w-[1.1rem] h-[1.1rem]" />}
-              label="Банк тестів"
-              active={currentTab === 'tests'}
-              onClick={tab('tests')}
+              icon={<Package className="w-[1.1rem] h-[1.1rem]" />}
+              label="Звіт складу"
+              active={currentTab === 'craft'}
+              onClick={tab('craft')}
             />
+            {canMts && (
+              <NavItem
+                icon={<Boxes className="w-[1.1rem] h-[1.1rem]" />}
+                label="Каталог крафту"
+                active={currentTab === 'catalog'}
+                onClick={tab('catalog')}
+              />
+            )}
           </div>
 
           {isLeader && (
@@ -158,7 +203,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Поточний користувач */}
         <div className="border-t border-[#1b2740] p-3">
-          <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
+          <div className="flex items-center gap-1 rounded-lg px-1 py-1">
+            <button onClick={go(onOpenProfile)} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-0.5 text-left hover:bg-white/[0.04]" title="Мій профіль">
             {currentUser?.discordAvatar ? (
               <img src={currentUser.discordAvatar} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
             ) : (
@@ -170,6 +216,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="truncate text-sm font-semibold text-white">{currentUser?.name}</div>
               <div className="truncate text-xs text-slate-500">{roleTitle}</div>
             </div>
+            </button>
             <button
               onClick={go(onLogout)}
               className="btn btn-ghost !p-2"
