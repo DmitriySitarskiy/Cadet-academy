@@ -51,7 +51,7 @@ export const CraftCatalogPage: React.FC<Props> = ({ config, onConfigChanged }) =
     <div>
       <PageHeader
         title="Каталог крафту"
-        description="Позиції, які офіцери обирають у звіті складу, і вартість матеріалів за одиницю. Старі звіти зберігають ціни на момент подачі."
+        description="Позиції, які офіцери обирають у звіті крафту, і вартість матеріалів за одиницю. Старі звіти зберігають ціни на момент подачі."
         actions={
           tab !== 'log' && (
             <button className="btn btn-primary" onClick={save} disabled={!dirty || saving}>

@@ -167,7 +167,7 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="leader-title" className="label">
-                  Керівник
+                  МТС (керівник)
                 </label>
                 <input
                   id="leader-title"
@@ -176,13 +176,13 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
                   value={leaderTitle}
                   onChange={(e) => setLeaderTitle(e.target.value)}
                   disabled={!isLeader}
-                  placeholder="Шериф"
+                  placeholder="МТС"
                   className="field"
                 />
               </div>
               <div>
                 <label htmlFor="leader-role" className="label">
-                  Discord Role ID керівника
+                  Discord Role ID МТС
                 </label>
                 <input
                   id="leader-role"
@@ -196,7 +196,7 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
                 />
               </div>
               <p className="hint !mt-0 sm:col-span-2">
-                Повний доступ: тести, інструктори, вебхук і ці налаштування.
+                Роль МТС (колишня роль шерифа): повний доступ до тестів, інструкторів, кадрів, крафту, вебхуків і цих налаштувань. Назву можна змінити у полі зліва.
               </p>
             </div>
 

@@ -106,7 +106,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ settings, error, onU
         <p className="mt-1.5 text-sm text-slate-500">{MOTTO_UA}</p>
 
         <p className="mt-12 max-w-[44ch] border-t border-[#1b2740] pt-6 text-base leading-relaxed text-slate-400">
-          Кабінет департаменту: кадровий аудит, звіти складу, а для інструкторів ще й іспити кадетів з одноразовими
+          Кабінет департаменту: кадровий аудит, звіти крафту, а для інструкторів ще й іспити кадетів з одноразовими
           посиланнями та вердиктами. Результат одразу потрапляє в Discord.
         </p>
       </div>

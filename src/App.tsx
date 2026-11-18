@@ -34,7 +34,7 @@ const PAGE_TITLES: Record<string, string> = {
   roles: 'Ролі та доступ',
   hr: 'Кадровий аудит',
   officers: 'Особовий склад',
-  craft: 'Звіт складу',
+  craft: 'Звіт крафту',
   catalog: 'Каталог крафту',
 };
 
@@ -259,7 +259,7 @@ export default function App() {
         <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-8 sm:py-10">
           {!profileConfirmed && currentUser?.discordId && (
             <div className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-4 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
-              <span>Перевірте своє ім'я та статік: вони підставляються у кадрові аудити та звіти складу.</span>
+              <span>Перевірте своє ім'я та статік: вони підставляються у кадрові аудити та звіти крафту.</span>
               <button className="btn btn-primary shrink-0" onClick={() => setShowProfile(true)}>Перевірити профіль</button>
             </div>
           )}

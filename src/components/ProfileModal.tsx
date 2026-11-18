@@ -46,7 +46,7 @@ export const ProfileModal: React.FC<{ onClose: () => void; onSaved: (user: User,
   return (
     <Modal
       title="Мій профіль"
-      description="Ці дані підставляються у кадрові аудити та звіти складу. Перевірте їх один раз."
+      description="Ці дані підставляються у кадрові аудити та звіти крафту. Перевірте їх один раз."
       onClose={onClose}
       footer={
         linked && (

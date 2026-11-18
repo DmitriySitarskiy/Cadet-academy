@@ -157,11 +157,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </>
           )}
 
-          <GroupTitle>Склад</GroupTitle>
+          <GroupTitle>Крафт</GroupTitle>
           <div className="space-y-0.5">
             <NavItem
               icon={<Package className="w-[1.1rem] h-[1.1rem]" />}
-              label="Звіт складу"
+              label="Звіт крафту"
               active={currentTab === 'craft'}
               onClick={tab('craft')}
             />

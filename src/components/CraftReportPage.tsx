@@ -7,7 +7,7 @@ import { PortalConfig, User } from '../types';
 const OTHER = '__other__';
 const SLOTS = [
   { key: 'before', title: 'До крафту', hint: 'Інвентар перед крафтом' },
-  { key: 'tablet', title: 'Планшет з історією', hint: 'Історія складу на планшеті' },
+  { key: 'tablet', title: 'Планшет з історією', hint: 'Історія крафту на планшеті' },
   { key: 'after', title: 'Після крафту', hint: 'Інвентар після крафту' },
 ] as const;
 type ShotKey = (typeof SLOTS)[number]['key'];
@@ -99,7 +99,7 @@ export const CraftReportPage: React.FC<Props> = ({ config, currentUser, onOpenPr
 
   return (
     <div>
-      <PageHeader title="Звіт складу" description="Оберіть, що ви скрафтили, додайте три скріншоти. Ваші дані підставляються автоматично." />
+      <PageHeader title="Звіт крафту" description="Оберіть, що ви скрафтили, додайте три скріншоти. Ваші дані підставляються автоматично." />
       {notice && <div className="mb-5"><Notice kind={notice.kind}>{notice.text}</Notice></div>}
 
       {catalog.length === 0 ? (

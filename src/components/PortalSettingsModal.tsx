@@ -6,7 +6,6 @@ import { AppSettings } from '../types';
 export const PortalSettingsModal: React.FC<{ settings: AppSettings | null; onClose: () => void; onSaved: () => void }> = ({ settings, onClose, onSaved }) => {
   const [officerRole, setOfficerRole] = useState(settings?.discordOfficerRoleId || '');
   const [hrRole, setHrRole] = useState(settings?.discordHrRoleId || '');
-  const [mtsRole, setMtsRole] = useState(settings?.discordMtsRoleId || '');
   const [hrHook, setHrHook] = useState(settings?.discordHrWebhookUrl || '');
   const [craftHook, setCraftHook] = useState(settings?.discordCraftWebhookUrl || '');
   const [thread, setThread] = useState(Boolean(settings?.discordCraftUseThread));
@@ -18,7 +17,7 @@ export const PortalSettingsModal: React.FC<{ settings: AppSettings | null; onClo
     setError(null);
     try {
       await api.savePortalSettings({
-        discordOfficerRoleId: officerRole, discordHrRoleId: hrRole, discordMtsRoleId: mtsRole,
+        discordOfficerRoleId: officerRole, discordHrRoleId: hrRole, discordMtsRoleId: '',
         discordHrWebhookUrl: hrHook, discordCraftWebhookUrl: craftHook, discordCraftUseThread: thread,
       });
       onSaved();
@@ -41,7 +40,7 @@ export const PortalSettingsModal: React.FC<{ settings: AppSettings | null; onClo
     <Modal
       wide
       title="Портал: ролі та вебхуки"
-      description="Кого пускати в кабінет за ролями Discord і куди надсилати кадрові аудити та звіти складу."
+      description="Кого пускати в кабінет за ролями Discord і куди надсилати кадрові аудити та звіти крафту."
       onClose={onClose}
       footer={
         <>
@@ -52,19 +51,18 @@ export const PortalSettingsModal: React.FC<{ settings: AppSettings | null; onClo
     >
       <div className="space-y-5">
         {error && <Notice kind="error">{error}</Notice>}
-        <div className="grid gap-4 sm:grid-cols-3">
-          {idField('r-off', 'Роль офіцера', officerRole, setOfficerRole, 'Доступ до звіту складу.')}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {idField('r-off', 'Роль офіцера', officerRole, setOfficerRole, 'Доступ до звіту крафту.')}
           {idField('r-hr', 'Роль кадровика', hrRole, setHrRole, 'Кадровий аудит і особовий склад.')}
-          {idField('r-mts', 'Роль МТС', mtsRole, setMtsRole, 'Каталог крафту та журнал звітів.')}
         </div>
-        <p className="hint !mt-0">Ролі керівника та інструктора налаштовуються у формі на сторінці нижче. Ролі діють після наступного входу людини.</p>
+        <p className="hint !mt-0">Роль МТС (повний доступ, включно з каталогом крафту та журналом звітів) і роль інструктора налаштовуються у формі на сторінці нижче. Ролі діють після наступного входу людини.</p>
         <div className="space-y-4 border-t border-[#1b2740] pt-5">
           <div>
             <label className="label" htmlFor="hook-hr">Вебхук кадрового аудиту</label>
             <input id="hook-hr" className="field font-mono" value={hrHook} onChange={(e) => setHrHook(e.target.value)} placeholder="https://discord.com/api/webhooks/..." autoComplete="off" />
           </div>
           <div>
-            <label className="label" htmlFor="hook-craft">Вебхук звітів складу</label>
+            <label className="label" htmlFor="hook-craft">Вебхук звітів крафту</label>
             <input id="hook-craft" className="field font-mono" value={craftHook} onChange={(e) => setCraftHook(e.target.value)} placeholder="https://discord.com/api/webhooks/..." autoComplete="off" />
           </div>
           <label className="flex items-start gap-3 text-sm text-slate-300">

@@ -479,7 +479,7 @@ export function registerPortalRoutes(app: express.Express, d: PortalDeps) {
     } catch (e) { fail(res, e); }
   });
 
-  // ----- Звіт складу -----
+  // ----- Звіт крафту -----
   app.get('/api/crafts', requireMts, async (req, res) => {
     try {
       const limit = Math.max(1, Math.min(Number(req.query.limit) || 100, 300));
@@ -490,7 +490,7 @@ export function registerPortalRoutes(app: express.Express, d: PortalDeps) {
   app.post('/api/crafts', requireMember, async (req, res) => {
     const user = d.getCurrentUser(req)!;
     // Куратору (резервний вхід) дозволено все, навіть без Discord ID
-    if (!user.discordId && user.role !== 'leader') return res.status(400).json({ error: 'Звіт складу подається після входу через Discord (потрібен ваш Discord ID).' });
+    if (!user.discordId && user.role !== 'leader') return res.status(400).json({ error: 'Звіт крафту подається після входу через Discord (потрібен ваш Discord ID).' });
     if (!d.rateLimit(`craft:${user.id}`, 10, 60_000)) return res.status(429).json({ error: 'Забагато звітів за хвилину. Зачекайте.' });
     try {
       const db = d.getDb();
