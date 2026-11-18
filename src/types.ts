@@ -211,6 +211,7 @@ export interface HrAudit {
   createdAt: string;
   discordPosted: boolean;
   discordError?: string;
+  changes?: { field: string; from: string; to: string }[]; // для «Виправлення»: що саме змінено
   local?: boolean; // запис лише в журналі (корекція даних), у Discord не йде
 }
 

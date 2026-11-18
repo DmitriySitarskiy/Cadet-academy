@@ -16,7 +16,7 @@ export interface PortalDeps {
 
 const DISCORD_ID = /^\d{17,20}$/;
 const STATIC_ID = /^\d{1,8}$/;
-const TYPE_LABEL: Record<HrAuditType, string> = { hire: 'Прийняття', promote: 'Підвищення', demote: 'Пониження', dismiss: 'Звільнення', correction: 'Корекція' };
+const TYPE_LABEL: Record<HrAuditType, string> = { hire: 'Прийняття', promote: 'Підвищення', demote: 'Пониження', dismiss: 'Звільнення', correction: 'Виправлення' };
 const TYPE_COLOR: Record<HrAuditType, number> = { hire: 0x57f287, promote: 0x3b82f6, demote: 0xf59e0b, dismiss: 0xef4444, correction: 0x94a3b8 };
 
 const uid = (p: string) => `${p}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -40,7 +40,7 @@ async function listOfficers(): Promise<Officer[]> {
 
 // Створює запис офіцера при першому вході: ім'я та статік беремо з серверного нікнейму.
 // Наступні входи нічого не перезаписують — людина сама правила профіль.
-export async function ensureOfficer(input: { discordId: string; nick?: string | null; fallbackName?: string }): Promise<Officer | null> {
+export async function ensureOfficer(input: { discordId: string; nick?: string | null; fallbackName?: string }, strict = false): Promise<Officer | null> {
   try {
     const existing = await store.get<Officer>('officers', input.discordId);
     if (existing) return existing;
@@ -61,6 +61,7 @@ export async function ensureOfficer(input: { discordId: string; nick?: string | 
     return officer;
   } catch (e) {
     console.warn('[Portal] ensureOfficer:', (e as Error).message);
+    if (strict) throw e;
     return null;
   }
 }
@@ -106,9 +107,13 @@ async function postHrAudit(db: DatabaseSchema, a: HrAudit) {
   const rank =
     a.type === 'promote' || a.type === 'demote'
       ? `${rankLabel(a.rankFrom)} → ${rankLabel(a.rankTo)}`
-      : rankLabel(a.type === 'dismiss' ? a.rankFrom : a.rankTo);
+      : a.type === 'correction'
+        ? (a.rankFrom !== a.rankTo ? `${rankLabel(a.rankFrom)} → ${rankLabel(a.rankTo)}` : rankLabel(a.rankTo))
+        : rankLabel(a.type === 'dismiss' ? a.rankFrom : a.rankTo);
+  const changeField = a.type === 'correction' && a.changes?.length
+    ? [{ name: 'Що змінено', value: a.changes.map((c) => `• ${c.field}: ${c.from || '—'} → ${c.to || '—'}`).join('\n').slice(0, 1000) }]
+    : [];
   const payload = {
-    username: 'Відділ Кадрів',
     content: '🔔 **Заповнено Кадровий Аудит**',
     allowed_mentions: { parse: [] },
     embeds: [
@@ -119,6 +124,7 @@ async function postHrAudit(db: DatabaseSchema, a: HrAudit) {
           { name: 'Тип кадрового аудиту', value: TYPE_LABEL[a.type] },
           { name: "Ім'я Прізвище , номер паспорту", value: personLine(a.officer).slice(0, 1000) },
           { name: 'Порядковий ранг', value: rank },
+          ...changeField,
           { name: 'Згідно чого?', value: a.basis.slice(0, 1000) },
           { name: 'Хто заповнив', value: personLine(a.filer).slice(0, 1000) },
           { name: 'Дата та час заповнення', value: kyivStamp(a.createdAt) },
@@ -169,7 +175,7 @@ export function registerPortalRoutes(app: express.Express, d: PortalDeps) {
   // Профіль поточного користувача (створюється з нікнейму, якщо ще немає)
   async function officerOf(user: User): Promise<Officer | null> {
     if (!user.discordId) return null;
-    return ensureOfficer({ discordId: user.discordId, nick: user.name, fallbackName: user.name });
+    return ensureOfficer({ discordId: user.discordId, nick: user.name, fallbackName: user.name }, true);
   }
   // Хто заповнив: беремо з профілю, а не з тіла запиту
   async function filerOf(user: User): Promise<PersonSnapshot> {
@@ -355,14 +361,19 @@ export function registerPortalRoutes(app: express.Express, d: PortalDeps) {
     try {
       const b = req.body || {};
       const type = b.type as HrAuditType;
-      if (!['hire', 'promote', 'demote', 'dismiss'].includes(type)) return res.status(400).json({ error: 'Невірний тип кадрового аудиту.' });
+      if (!['hire', 'promote', 'demote', 'dismiss', 'correction'].includes(type)) return res.status(400).json({ error: 'Невірний тип кадрового аудиту.' });
       const basis = clean(b.basis, 500);
       if (basis.length < 2) return res.status(400).json({ error: 'Вкажіть, згідно чого прийнято кадрове рішення.' });
       const discordId = clean(b.discordId, 20);
       if (!DISCORD_ID.test(discordId)) return res.status(400).json({ error: 'Невірний Discord ID (17–20 цифр).' });
 
       let rankTo: number | null = null;
-      if (type !== 'dismiss') {
+      if (type === 'correction') {
+        if (b.rankTo !== undefined && b.rankTo !== null && b.rankTo !== '') {
+          rankTo = Number(b.rankTo);
+          if (!Number.isInteger(rankTo) || rankTo < 1 || rankTo > RANKS.length) return res.status(400).json({ error: 'Невірний ранг.' });
+        }
+      } else if (type !== 'dismiss') {
         rankTo = Number(b.rankTo);
         if (!Number.isInteger(rankTo) || rankTo < 1 || rankTo > RANKS.length) return res.status(400).json({ error: 'Оберіть ранг.' });
       }
@@ -375,6 +386,8 @@ export function registerPortalRoutes(app: express.Express, d: PortalDeps) {
       const now = new Date().toISOString();
       let officer: Officer;
       let rankFrom: number | null = null;
+      let movedFrom = '';
+      let changes: { field: string; from: string; to: string }[] | undefined;
 
       if (type === 'hire') {
         if (existing && existing.rank !== null) {
@@ -388,6 +401,31 @@ export function registerPortalRoutes(app: express.Express, d: PortalDeps) {
           discordId, name, staticId, department: clean(b.department, 40),
           rank: rankTo, confirmed: existing?.confirmed || false, createdAt: existing?.createdAt || now, updatedAt: now,
         };
+      } else if (type === 'correction') {
+        if (!existing) return res.status(404).json({ error: 'Офіцера немає в базі.' });
+        const name = clean(b.name, 60);
+        const staticId = clean(b.staticId, 8).replace(/^#/, '');
+        if (name.length < 2) return res.status(400).json({ error: "Вкажіть ім'я та прізвище (або позивний)." });
+        if (!STATIC_ID.test(staticId)) return res.status(400).json({ error: 'Статік — це число (до 8 цифр).' });
+        rankFrom = existing.rank;
+        if (rankTo === null) rankTo = existing.rank;
+        const newId = clean(b.newDiscordId, 20) || discordId;
+        if (!DISCORD_ID.test(newId)) return res.status(400).json({ error: 'Невірний Discord ID (17–20 цифр).' });
+        if (newId !== discordId) {
+          const clash = await store.get<Officer>('officers', newId);
+          if (clash) return res.status(409).json({ error: `Discord ID ${newId} уже належить офіцеру ${clash.name}.` });
+          movedFrom = discordId;
+        }
+        officer = { ...existing, discordId: newId, name, staticId, department: clean(b.department, 40), rank: rankTo, updatedAt: now };
+        const diff = (field: string, from: string, to: string) => (from !== to ? [{ field, from, to }] : []);
+        changes = [
+          ...diff('Discord ID', discordId, newId),
+          ...diff("Ім'я", existing.name, officer.name),
+          ...diff('Статік', existing.staticId, officer.staticId),
+          ...diff('Відділ', existing.department, officer.department),
+          ...diff('Ранг', existing.rank === null ? '' : rankLabel(existing.rank), officer.rank === null ? '' : rankLabel(officer.rank)),
+        ];
+        if (!changes.length) return res.status(400).json({ error: 'Нічого не змінено.' });
       } else {
         if (!existing) return res.status(404).json({ error: 'Офіцера немає в базі. Для нового співробітника використайте «Прийняття».' });
         rankFrom = existing.rank;
@@ -398,13 +436,16 @@ export function registerPortalRoutes(app: express.Express, d: PortalDeps) {
 
       const audit: HrAudit = {
         id: uid('aud'), type, officer: snap(officer), rankFrom, rankTo: type === 'dismiss' ? null : rankTo,
-        basis, filer, createdAt: now, discordPosted: false,
+        basis, filer, createdAt: now, discordPosted: false, ...(changes ? { changes } : {}),
       };
       // Спершу журнал (щоб рішення не загубилось), потім зміна бази офіцерів
       await store.put('hr_audits', audit.id, audit);
       try {
         if (type === 'dismiss') await store.remove('officers', discordId);
-        else await store.put('officers', discordId, officer);
+        else {
+          await store.put('officers', officer.discordId, officer);
+          if (movedFrom) await store.remove('officers', movedFrom);
+        }
         invalidateOfficers();
       } catch (e) {
         await store.remove('hr_audits', audit.id).catch(() => {});
@@ -493,7 +534,7 @@ export function registerPortalRoutes(app: express.Express, d: PortalDeps) {
         `📸 Скріншоти: 1) ${labels[0]} · 2) ${labels[1]} · 3) ${labels[2]}`,
       ].join('\n');
 
-      const payload: any = { content: content.slice(0, 1900), allowed_mentions: { parse: [] }, username: 'Склад' };
+      const payload: any = { content: content.slice(0, 1900), allowed_mentions: { parse: [] } };
       if (db.settings.discordCraftUseThread) payload.thread_name = `${who} — ${kyivStamp(now)}`.slice(0, 100);
       const posted = await postWebhook((db.settings.discordCraftWebhookUrl || '').trim(), payload, files);
       if (!posted.ok) return res.status(502).json({ error: `Звіт не надіслано в Discord. ${posted.error}` });

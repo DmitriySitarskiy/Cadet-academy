@@ -658,8 +658,6 @@ app.post('/api/discord/test', requireLeader, async (req, res) => {
     const targetUrl = webhookUrl.includes('?') ? `${webhookUrl}&wait=true` : `${webhookUrl}?wait=true`;
 
     const payload: any = {
-      username: `${db.settings.academyName || 'Шериф Академія'} | Тест`,
-      avatar_url: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=128&q=80',
       content: 'Тестове повідомлення від Системи Онлайн-Тестування Академії.',
       // Обов'язково для Forum-каналів Discord!
       thread_name: '📋 Тестова перевірка Discord Webhook',

@@ -64,7 +64,6 @@ export async function sendDiscordExamSubmission(
     : `Кадет ${result.cadetNickname} завершив складання іспиту!`;
 
   const payload: any = {
-    username: `${db.settings.academyName} | Екзаменатор`,
     content: mentionContent,
     thread_name: forumThreadName.slice(0, 100), // Discord Forum thread title
     embeds: [
@@ -209,7 +208,6 @@ export async function sendDiscordInstructorDecision(
   const hasThreadId = Boolean(cleanThreadId);
 
   const payload: any = {
-    username: `${db.settings.academyName} | Штаб Академії`,
     content: result.cadetDiscord
       ? `📢 <@${result.cadetDiscord}>, інструктор оновив статус вашого іспиту!`
       : `Оновлено статус іспиту кадета ${result.cadetNickname}`,

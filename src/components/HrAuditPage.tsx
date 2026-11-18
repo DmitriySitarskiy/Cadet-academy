@@ -11,9 +11,9 @@ const TYPES: { value: HrAuditType; label: string; cls: string }[] = [
   { value: 'promote', label: 'Підвищення', cls: 'text-sky-400' },
   { value: 'demote', label: 'Пониження', cls: 'text-amber-400' },
   { value: 'dismiss', label: 'Звільнення', cls: 'text-red-400' },
+  { value: 'correction', label: 'Виправлення', cls: 'text-violet-300' },
 ];
 const OTHER = '__other__';
-const CORRECTION = { value: 'correction' as HrAuditType, label: 'Корекція', cls: 'text-slate-300' };
 
 interface Props {
   config: PortalConfig;
@@ -31,6 +31,7 @@ export const HrAuditPage: React.FC<Props> = ({ config, currentUser, onConfigChan
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Officer | null>(null);
   const [discordId, setDiscordId] = useState('');
+  const [newDiscordId, setNewDiscordId] = useState('');
   const [name, setName] = useState('');
   const [staticId, setStaticId] = useState('');
   const [department, setDepartment] = useState('');
@@ -60,9 +61,10 @@ export const HrAuditPage: React.FC<Props> = ({ config, currentUser, onConfigChan
   const basis = reason === OTHER ? custom.trim() : reason;
   const isHire = type === 'hire';
   const isDismiss = type === 'dismiss';
+  const isCorrection = type === 'correction';
 
   const resetForm = () => {
-    setSelected(null); setQuery(''); setDiscordId(''); setName(''); setStaticId(''); setDepartment('');
+    setSelected(null); setQuery(''); setDiscordId(''); setNewDiscordId(''); setName(''); setStaticId(''); setDepartment('');
     setRankTo(''); setReason(''); setCustom('');
   };
   const changeType = (t: HrAuditType) => {
@@ -84,15 +86,38 @@ export const HrAuditPage: React.FC<Props> = ({ config, currentUser, onConfigChan
     return true;
   });
 
-  const officerOk = isHire ? /^\d{17,20}$/.test(discordId) && name.trim().length >= 2 && /^\d{1,8}$/.test(staticId) : Boolean(selected);
-  const valid = officerOk && (isDismiss || rankTo !== '') && basis.length >= 2;
+  const pick = (o: Officer) => {
+    setSelected(o);
+    if (isCorrection) {
+      setNewDiscordId(o.discordId); setName(o.name); setStaticId(o.staticId); setDepartment(o.department); setRankTo(o.rank ?? '');
+    } else setRankTo('');
+  };
+  const changes = useMemo(() => {
+    if (!isCorrection || !selected) return [] as { field: string; from: string; to: string }[];
+    const rl = (n: number | '' | null) => (n === '' || n === null ? '' : rankLabel(n));
+    const all = [
+      { field: 'Discord ID', from: selected.discordId, to: newDiscordId },
+      { field: "Ім'я", from: selected.name, to: name.trim() },
+      { field: 'Статік', from: selected.staticId, to: staticId },
+      { field: 'Відділ', from: selected.department, to: department.trim() },
+      { field: 'Ранг', from: rl(selected.rank), to: rl(rankTo) },
+    ];
+    return all.filter((c) => c.from !== c.to);
+  }, [isCorrection, selected, name, staticId, department, rankTo]);
+
+  const officerOk = isHire
+    ? /^\d{17,20}$/.test(discordId) && name.trim().length >= 2 && /^\d{1,8}$/.test(staticId)
+    : isCorrection
+      ? Boolean(selected) && /^\d{17,20}$/.test(newDiscordId) && name.trim().length >= 2 && /^\d{1,8}$/.test(staticId)
+      : Boolean(selected);
+  const valid = officerOk && (isDismiss || isCorrection || rankTo !== '') && basis.length >= 2 && (!isCorrection || changes.length > 0);
 
   const submit = async () => {
     setSubmitting(true);
     setNotice(null);
     try {
       const res = await api.createAudit({
-        type, discordId: isHire ? discordId : selected!.discordId, name, staticId, department,
+        type, discordId: isHire ? discordId : selected!.discordId, newDiscordId: isCorrection ? newDiscordId : undefined, name, staticId, department,
         rankTo: isDismiss ? undefined : rankTo, basis,
       });
       setNotice(
@@ -121,14 +146,14 @@ export const HrAuditPage: React.FC<Props> = ({ config, currentUser, onConfigChan
     }
   };
 
-  const personName = isHire ? name : selected?.name;
+  const personName = isHire || isCorrection ? name : selected?.name;
   const typeMeta = TYPES.find((t) => t.value === type)!;
 
   return (
     <div>
       <PageHeader
         title="Кадровий аудит"
-        description="Оформлення прийняття, підвищення, пониження та звільнення. Рішення потрапляє в журнал, оновлює базу офіцерів і надсилається в Discord."
+        description="Оформлення прийняття, підвищення, пониження, звільнення та виправлення даних. Рішення потрапляє в журнал, оновлює базу офіцерів і надсилається в Discord."
         actions={
           <button className="btn btn-secondary" onClick={() => setShowReasons(true)}>
             <Settings2 className="h-4 w-4" />
@@ -190,7 +215,7 @@ export const HrAuditPage: React.FC<Props> = ({ config, currentUser, onConfigChan
                     {matches.length === 0 && <li className="p-3 text-sm text-slate-500">Нікого не знайдено. Нового співробітника оформлюйте через «Прийняття».</li>}
                     {matches.map((o) => (
                       <li key={o.discordId}>
-                        <button className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left text-sm hover:bg-white/[0.04]" onClick={() => { setSelected(o); setRankTo(''); }}>
+                        <button className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left text-sm hover:bg-white/[0.04]" onClick={() => pick(o)}>
                           <span className="truncate text-slate-200">{o.department ? `${o.department} | ` : ''}{o.name} <span className="font-mono text-slate-500">{o.staticId}</span></span>
                           <span className="shrink-0 text-xs text-slate-400">{rankLabel(o.rank)}</span>
                         </button>
@@ -203,12 +228,36 @@ export const HrAuditPage: React.FC<Props> = ({ config, currentUser, onConfigChan
           </div>
         )}
 
+        {isCorrection && selected && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className="label" htmlFor="c-id">Discord ID</label>
+              <input id="c-id" className="field font-mono" inputMode="numeric" value={newDiscordId} onChange={(e) => setNewDiscordId(e.target.value.replace(/\D/g, '').slice(0, 20))} />
+              <p className="hint">Якщо при прийнятті вказали не той ID, виправте тут: картка й історія перейдуть на новий ID. Змінений ID має належати іншій людині, ніж уже наявні в базі.</p>
+            </div>
+            <div>
+              <label className="label" htmlFor="c-name">Ім'я та прізвище (або позивний)</label>
+              <input id="c-name" className="field" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label" htmlFor="c-static">Статік</label>
+                <input id="c-static" className="field font-mono" inputMode="numeric" value={staticId} onChange={(e) => setStaticId(e.target.value.replace(/\D/g, '').slice(0, 8))} />
+              </div>
+              <div>
+                <label className="label" htmlFor="c-dept">Відділ</label>
+                <input id="c-dept" className="field" value={department} onChange={(e) => setDepartment(e.target.value)} maxLength={40} />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Ранг */}
         {!isDismiss && (
           <div className="max-w-sm">
-            <label className="label" htmlFor="h-rank">{isHire ? 'Ранг при прийнятті' : 'Новий ранг'}</label>
+            <label className="label" htmlFor="h-rank">{isHire ? 'Ранг при прийнятті' : isCorrection ? 'Ранг' : 'Новий ранг'}</label>
             <select id="h-rank" className="field" value={rankTo} onChange={(e) => setRankTo(e.target.value ? Number(e.target.value) : '')} disabled={!isHire && !selected}>
-              <option value="">Оберіть ранг</option>
+              <option value="">{isCorrection ? 'Не вказано' : 'Оберіть ранг'}</option>
               {rankOptions.map((r) => <option key={r.n} value={r.n}>{rankLabel(r.n)}</option>)}
             </select>
           </div>
@@ -250,7 +299,7 @@ export const HrAuditPage: React.FC<Props> = ({ config, currentUser, onConfigChan
           <EmptyState icon={<ClipboardList className="h-5 w-5" />} title="Рішень ще немає" text="Після першого оформлення воно з'явиться тут." />
         ) : (
           audits.map((a) => {
-            const meta = TYPES.find((t) => t.value === a.type) || CORRECTION;
+            const meta = TYPES.find((t) => t.value === a.type)!;
             return (
               <div key={a.id} className="grid gap-1 p-4 sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
                 <div className="text-xs text-slate-500">{formatDateTime(a.createdAt)}</div>
@@ -291,8 +340,9 @@ export const HrAuditPage: React.FC<Props> = ({ config, currentUser, onConfigChan
         >
           <dl className="space-y-3 text-sm">
             <Row k="Тип"><span className={`font-semibold ${typeMeta.cls}`}>{typeMeta.label}</span></Row>
-            <Row k="Офіцер">{personName} {isHire ? staticId : selected?.staticId}</Row>
-            {!isDismiss && <Row k="Ранг">{selected && !isHire ? `${rankLabel(selected.rank)} → ` : ''}{rankLabel(Number(rankTo))}</Row>}
+            <Row k="Офіцер">{isCorrection ? `${selected?.name} ${selected?.staticId}` : `${personName} ${isHire ? staticId : selected?.staticId}`}</Row>
+            {isCorrection && changes.map((c) => <Row key={c.field} k={c.field}>{c.from || '—'} → {c.to || '—'}</Row>)}
+            {!isDismiss && !isCorrection && <Row k="Ранг">{selected && !isHire ? `${rankLabel(selected.rank)} → ` : ''}{rankLabel(Number(rankTo))}</Row>}
             {isDismiss && <Row k="Ранг на момент звільнення">{rankLabel(selected?.rank)}</Row>}
             <Row k="Згідно чого">{basis}</Row>
             {isDismiss && <Notice kind="warn">Офіцера буде видалено з бази. Запис про звільнення залишиться в журналі.</Notice>}
